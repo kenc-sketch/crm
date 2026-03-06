@@ -293,9 +293,14 @@
         function decryptRKey(encrypted, token) {
             if(!encrypted || !token) return "";
             try { 
-                const combined = atob(encrypted.replace(/-/g, '+').replace(/_/g, '/')); 
+                // 1. 解開 Base64 (GAS 傳回的是 Base64 化的 "Key|Salt")
+                const combined = atob(encrypted); 
+                // 2. 以 "|" 切割，取第一個部分就是原始的 Ragic API Key
                 return combined.split('|')[0]; 
-            } catch(e) { return ""; }
+            } catch(e) { 
+                console.error("解密錯誤:", e);
+                return ""; 
+            }
         }
 
         // 優化改善：實施端到端雜湊混淆
@@ -529,44 +534,71 @@
             const urlInput = document.getElementById("f_ragic_url");
             const url = urlInput.value.trim();
             const existingEmail = document.getElementById("f_email").value.trim();
+
             if (!url || !url.includes("ragic.com")) {
                 showToast("⚠️ 請輸入有效的 Ragic 網址");
                 return;
             }
+            
+            // 取得 Session 資料
+            const encryptedKey = sessionStorage.getItem('ken_crm_ragic_key');
+            const token = sessionStorage.getItem('ken_crm_token');
+            
+            // 執行解密
+            const localRKey = decryptRKey(encryptedKey, token);
+
+            if (!localRKey || localRKey.length < 10) {
+                showToast("❌ 憑證無效或解密失敗，請重新登入");
+                return;
+            }
+
             if (syncBtn.disabled) return;
             syncBtn.disabled = true;
-            showToast("⏳ 正在深度讀取 Ragic 資料...");
+            showToast("⏳ 正在讀取 Ragic 資料...");
+
             try {
                 const urlParts = url.split('/');
                 const recordId = urlParts.pop().split('?')[0];
                 const pathParts = url.split('ragic.com/matthmen');
                 if(pathParts.length < 2) throw new Error("網址格式不符");
+                
                 const apiUrl = `${CONFIG.RAGIC_BASE_URL}${pathParts[1].split('?')[0]}/${recordId}?v=3`;
                 
-                // 優化區域：閉包獲取解密金鑰，不留全域變數
-                const localRKey = decryptRKey(sessionStorage.getItem('ken_crm_ragic_key'), CONFIG.AUTH_TOKEN);
+                // 重要修正：Ragic 要求 Basic Auth 格式為 APIKey: (後面要帶冒號)
                 const authHeader = 'Basic ' + btoa(localRKey + ':');
 
                 const res = await fetch(apiUrl, {
                     method: 'GET',
-                    headers: { 'Authorization': authHeader }
+                    headers: { 
+                        'Authorization': authHeader,
+                        'Accept': 'application/json'
+                    }
                 });
-                if (!res.ok) throw new Error("API 存取失敗");
+
+                if (!res.ok) throw new Error("API 驗證失敗，請檢查 Ragic Key 是否正確");
+
                 const data = await res.json();
                 const record = data[recordId];
+
                 if (record) {
+                    // 帶入姓名與公司
                     CONFIG.FIELD_MAP.name.some(k => record[k] ? (document.getElementById("f_name").value = record[k], true) : false);
                     CONFIG.FIELD_MAP.company.some(k => record[k] ? (document.getElementById("f_company").value = record[k], true) : false);
+                    
                     let foundEmail = "", salesDemoDate = "", lastContactDate = "";
                     const deepScan = (obj) => {
                         if (!obj || typeof obj !== 'object') return;
                         for (let key of Object.keys(obj)) {
+                            // 自動識別 Email
                             if (obj[key] && typeof obj[key] === 'string' && obj[key].includes('@')) foundEmail = obj[key].trim();
                         }
+                        
+                        // 根據 FIELD_MAP 識別日期與類型
                         const type = CONFIG.FIELD_MAP.logType.map(k => obj[k]).filter(v => v).join(" ");
                         const user = CONFIG.FIELD_MAP.salesUser.map(k => obj[k]).filter(v => v).join(" ");
                         const rawDate = CONFIG.FIELD_MAP.logDate.map(k => obj[k]).find(v => v);
                         const dateVal = parseDate(rawDate);
+
                         if (dateVal) {
                             if (type.includes("銷售DEMO") && user.toLowerCase().includes("ken")) {
                                 if (!salesDemoDate || new Date(dateVal) < new Date(salesDemoDate)) salesDemoDate = dateVal;
@@ -577,14 +609,20 @@
                         }
                         Object.values(obj).forEach(v => { if (v && typeof v === 'object') deepScan(v); });
                     };
+
                     deepScan(record);
+
                     if (!existingEmail && foundEmail) document.getElementById("f_email").value = foundEmail;
                     if (salesDemoDate) document.getElementById("f_demo").value = salesDemoDate;
                     if (lastContactDate) document.getElementById("f_last").value = lastContactDate;
+                    
                     showToast("✅ Ragic 資料深度同步完成");
+                } else {
+                    throw new Error("找不到該筆紀錄內容");
                 }
             } catch (e) {
-                showToast("❌ 同步失敗，請確認網址或權限");
+                console.error("Ragic 同步失敗:", e);
+                showToast("❌ 同步失敗：" + e.message);
             } finally {
                 syncBtn.disabled = false;
             }
@@ -861,7 +899,7 @@
             const id = document.getElementById("f_id").value || "K-" + Date.now();
             const createDate = document.getElementById("f_create_date").value || new Date().toISOString();
             const newData = {
-                id, create_date: createDate, 
+                id, create_date: createDate, 
                 update_ts: Date.now(),
                 name: nameVal,
                 company: companyVal,
@@ -874,8 +912,8 @@
                 next: document.getElementById("f_next").value
             };
 
-            const dupIdx = contacts.findIndex(c => 
-                c.id !== id && 
+            const dupIdx = contacts.findIndex(c => 
+                c.id !== id && 
                 ((c.name === newData.name && c.company === newData.company) || (newData.email && c.email === newData.email))
             );
 
