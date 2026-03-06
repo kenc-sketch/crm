@@ -298,7 +298,7 @@
             } catch(e) { return ""; }
         }
 
-        // 優化改善：實施 SHA-256 安全雜湊
+        // 優化改善：實施 SHA-256 安全雜湊 (瀏覽器原生)
         async function secureHash(str) {
             const msgUint8 = new TextEncoder().encode(str);
             const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
@@ -408,6 +408,7 @@
 
             errorEl.textContent = "⏳ 安全驗證中...";
             try {
+                // 強制在發送前進行雜湊處理
                 const hashedPass = await secureHash(pass);
                 const payload = { 
                     action: isReg ? 'register' : 'login', 
@@ -561,6 +562,7 @@
 
                 if (result.error) throw new Error(result.error);
 
+                // 自動填入，包含 fallback 邏輯
                 if (result.name) document.getElementById("f_name").value = result.name;
                 if (result.company) document.getElementById("f_company").value = result.company;
                 if (result.email) document.getElementById("f_email").value = result.email;
@@ -570,7 +572,7 @@
                 showToast("✅ 資料同步完成");
             } catch (e) {
                 showToast("❌ 同步失敗：" + e.message);
-                console.error(e);
+                console.error("Sync Error Details:", e);
             } finally {
                 syncBtn.disabled = false;
                 syncBtn.textContent = "🔗 同步網址";
@@ -654,8 +656,7 @@
         }
 
         function checkBackupStatus() {
-            const lastExBackupStr = localStorage.getItem(CONFIG.EX_BACKUP_TS_KEY) || "0";
-            const lastExBackup = parseInt(lastExBackupStr);
+            const lastExBackup = parseInt(localStorage.getItem(CONFIG.EX_BACKUP_TS_KEY) || "0");
             const dayMs = 24 * 60 * 60 * 1000;
             
             if (Date.now() - lastExBackup > dayMs) {
