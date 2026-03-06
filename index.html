@@ -298,7 +298,7 @@
             } catch(e) { return ""; }
         }
 
-        // 優化改善：實施 SHA-256 安全雜湊
+        // 優化改善：實施 SHA-256 安全雜湊 (瀏覽器原生)
         async function secureHash(str) {
             const msgUint8 = new TextEncoder().encode(str);
             const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
@@ -403,14 +403,11 @@
             const errorEl = document.getElementById("login_error");
 
             if (!uid || !pass) { errorEl.textContent = "⚠️ 請填寫 ID 與密碼"; return; }
-            
-            // 判斷是否為註冊模式
             const isReg = !document.getElementById("reg_fields").hidden;
             if (isReg && !rkey) { errorEl.textContent = "⚠️ 註冊需填寫 Ragic Key"; return; }
 
             errorEl.textContent = "⏳ 安全驗證中...";
             try {
-                // 強制在發送前進行雜湊處理
                 const hashedPass = await secureHash(pass);
                 const payload = { 
                     action: isReg ? 'register' : 'login', 
@@ -536,8 +533,7 @@
 
         async function handleUrlSync() {
             const syncBtn = document.getElementById("syncBtn");
-            const urlInput = document.getElementById("f_ragic_url");
-            const url = urlInput.value.trim();
+            const url = document.getElementById("f_ragic_url").value.trim();
             
             if (!url || !url.includes("ragic.com")) {
                 showToast("⚠️ 請輸入有效的 Ragic 網址");
@@ -551,12 +547,16 @@
             try {
                 const resp = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
                     method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify({
                         action: 'fetchRagic',
                         token: CONFIG.AUTH_TOKEN,
                         ragicUrl: url
                     })
                 });
+                
+                if (!resp.ok) throw new Error("網路請求失敗");
                 const result = await resp.json();
 
                 if (result.error) throw new Error(result.error);
@@ -570,6 +570,7 @@
                 showToast("✅ 資料同步完成");
             } catch (e) {
                 showToast("❌ 同步失敗：" + e.message);
+                console.error(e);
             } finally {
                 syncBtn.disabled = false;
                 syncBtn.textContent = "🔗 同步網址";
@@ -640,7 +641,7 @@
                 if (result.success) {
                     statusEl.textContent = `(✅ 同步完成 ${nowObj.toLocaleTimeString()})`;
                     statusEl.style.color = "#27ae60";
-                    localStorage.setItem(CONFIG.BACKUP_TS_KEY, now);
+                    localStorage.setItem(CONFIG.BACKUP_TS_KEY, now.toString());
                 } else {
                     throw new Error(result.error || "儲存失敗");
                 }
