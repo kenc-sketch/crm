@@ -252,7 +252,7 @@
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;">
                 <button class="btn btn-main" onclick="authProcess(document.getElementById('reg_fields').hidden ? 'login' : 'register')">🚀 執行</button>
-                <button class="btn btn-sub" onclick="toggleRegMode()">📝 切換模式</button>
+                <button class="btn btn-sub" onclick="toggleRegMode()">📝 註冊模式</button>
             </div>
             <div id="login_error" style="color: var(--status-overdue); font-size: 0.8em; margin-top: 10px; text-align: center;"></div>
         </div>
@@ -298,7 +298,7 @@
             } catch(e) { return ""; }
         }
 
-        // 優化改善：實施 SHA-256 安全雜湊 (瀏覽器原生)
+        // 優化改善：實施 SHA-256 安全雜湊
         async function secureHash(str) {
             const msgUint8 = new TextEncoder().encode(str);
             const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
@@ -314,7 +314,6 @@
             TRASH_KEY: "ken_crm_trash",
             BACKUP_TS_KEY: "ken_crm_last_backup",
             EX_BACKUP_TS_KEY: "ken_crm_last_excel_backup",
-            // 優化區域：移除 CONFIG 全域明文金鑰，改為閉包動態調用
             RAGIC_BASE_URL: "https://ap8.ragic.com/matthmen",
             GOOGLE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxm4MQEBD1wiyj-BofQ1jhfIQ7b0kY5v7ZvYoCdhO3S0nKH4AeK9ieVyXvfjoQuzRSU/exec',
             TARGET_FOLDER_ID: myFolderId,
@@ -404,19 +403,26 @@
             const errorEl = document.getElementById("login_error");
 
             if (!uid || !pass) { errorEl.textContent = "⚠️ 請填寫 ID 與密碼"; return; }
-            if (!document.getElementById("reg_fields").hidden && !rkey) { errorEl.textContent = "⚠️ 註冊需填寫 Ragic Key"; return; }
+            
+            // 判斷是否為註冊模式
+            const isReg = !document.getElementById("reg_fields").hidden;
+            if (isReg && !rkey) { errorEl.textContent = "⚠️ 註冊需填寫 Ragic Key"; return; }
 
             errorEl.textContent = "⏳ 安全驗證中...";
             try {
-                // 改用非同步安全雜湊處理密碼
+                // 強制在發送前進行雜湊處理
                 const hashedPass = await secureHash(pass);
                 const payload = { 
-                    action: action === 'login' ? 'login' : 'register', 
+                    action: isReg ? 'register' : 'login', 
                     userId: uid, 
                     password: hashedPass, 
                     ragicKey: rkey 
                 };
-                const resp = await fetch(CONFIG.GOOGLE_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+
+                const resp = await fetch(CONFIG.GOOGLE_SCRIPT_URL, { 
+                    method: 'POST', 
+                    body: JSON.stringify(payload) 
+                });
                 const result = await resp.json();
 
                 if (result.error) {
@@ -427,9 +433,12 @@
                     sessionStorage.setItem('ken_crm_fid', result.folderId);
                     sessionStorage.setItem('ken_crm_ragic_key', result.ragicKey);
                     showToast("✅ 驗證成功");
-                    setTimeout(() => location.reload(), 500); 
+                    setTimeout(() => { location.reload(); }, 500); 
                 }
-            } catch (e) { errorEl.textContent = "❌ 伺服器無回應"; }
+            } catch (e) { 
+                errorEl.textContent = "❌ 伺服器通訊失敗"; 
+                console.error(e);
+            }
         }
 
         async function loadInitialData() {
