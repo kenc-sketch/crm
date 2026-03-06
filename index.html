@@ -298,10 +298,12 @@
             } catch(e) { return ""; }
         }
 
-        // 優化改善：實施端到端雜湊混淆
-        function fastHash(str) {
-            if(!str) return "";
-            return btoa(str).split('').reverse().join('').slice(0, 32);
+        // 優化改善：實施 SHA-256 安全雜湊 (瀏覽器原生)
+        async function secureHash(str) {
+            const msgUint8 = new TextEncoder().encode(str);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
         const CONFIG = {
@@ -365,7 +367,7 @@
                         }
                         resolve(db);
                     };
-                    request.onerror = (e) => reject("DB Init Error");
+                    request.onerror = () => reject("DB Init Error");
                 });
             },
             async getAll() {
@@ -404,13 +406,14 @@
             if (!uid || !pass) { errorEl.textContent = "⚠️ 請填寫 ID 與密碼"; return; }
             if (!document.getElementById("reg_fields").hidden && !rkey) { errorEl.textContent = "⚠️ 註冊需填寫 Ragic Key"; return; }
 
-            errorEl.textContent = "⏳ 正在通訊中...";
+            errorEl.textContent = "⏳ 安全驗證中...";
             try {
-                // 優化區域：密碼發送前執行 fastHash
+                // 改用非同步安全雜湊處理密碼
+                const hashedPass = await secureHash(pass);
                 const payload = { 
                     action: action === 'login' ? 'login' : 'register', 
                     userId: uid, 
-                    password: fastHash(pass), 
+                    password: hashedPass, 
                     ragicKey: rkey 
                 };
                 const resp = await fetch(CONFIG.GOOGLE_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
@@ -479,7 +482,6 @@
             checkTodayTasksAndNotify();
         }
 
-        // 優化區域：嵌入歷史復原函式
         async function handleRestore(slot) {
             if(!slot) return;
             if(!confirm(`確定要還原到「時段 ${slot}」的資料嗎？這會覆蓋當前所有內容！`)) {
@@ -501,7 +503,6 @@
             finally { document.getElementById("restoreSlot").value = ""; }
         }
 
-        /* --- 原始功能復原區 (0 遺漏) --- */
         function insertTimestamp() {
             const noteArea = document.getElementById("f_note");
             const now = new Date();
@@ -528,65 +529,41 @@
             const syncBtn = document.getElementById("syncBtn");
             const urlInput = document.getElementById("f_ragic_url");
             const url = urlInput.value.trim();
-            const existingEmail = document.getElementById("f_email").value.trim();
+            
             if (!url || !url.includes("ragic.com")) {
                 showToast("⚠️ 請輸入有效的 Ragic 網址");
                 return;
             }
-            if (syncBtn.disabled) return;
+            
             syncBtn.disabled = true;
-            showToast("⏳ 正在深度讀取 Ragic 資料...");
+            syncBtn.textContent = "⏳ 同步中";
+            showToast("🔍 正在透過雲端安全獲取資料...");
+            
             try {
-                const urlParts = url.split('/');
-                const recordId = urlParts.pop().split('?')[0];
-                const pathParts = url.split('ragic.com/matthmen');
-                if(pathParts.length < 2) throw new Error("網址格式不符");
-                const apiUrl = `${CONFIG.RAGIC_BASE_URL}${pathParts[1].split('?')[0]}/${recordId}?v=3`;
-                
-                // 優化區域：閉包獲取解密金鑰，不留全域變數
-                const localRKey = decryptRKey(sessionStorage.getItem('ken_crm_ragic_key'), CONFIG.AUTH_TOKEN);
-                const authHeader = 'Basic ' + btoa(localRKey + ':');
-
-                const res = await fetch(apiUrl, {
-                    method: 'GET',
-                    headers: { 'Authorization': authHeader }
+                const resp = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'fetchRagic',
+                        token: CONFIG.AUTH_TOKEN,
+                        ragicUrl: url
+                    })
                 });
-                if (!res.ok) throw new Error("API 存取失敗");
-                const data = await res.json();
-                const record = data[recordId];
-                if (record) {
-                    CONFIG.FIELD_MAP.name.some(k => record[k] ? (document.getElementById("f_name").value = record[k], true) : false);
-                    CONFIG.FIELD_MAP.company.some(k => record[k] ? (document.getElementById("f_company").value = record[k], true) : false);
-                    let foundEmail = "", salesDemoDate = "", lastContactDate = "";
-                    const deepScan = (obj) => {
-                        if (!obj || typeof obj !== 'object') return;
-                        for (let key of Object.keys(obj)) {
-                            if (obj[key] && typeof obj[key] === 'string' && obj[key].includes('@')) foundEmail = obj[key].trim();
-                        }
-                        const type = CONFIG.FIELD_MAP.logType.map(k => obj[k]).filter(v => v).join(" ");
-                        const user = CONFIG.FIELD_MAP.salesUser.map(k => obj[k]).filter(v => v).join(" ");
-                        const rawDate = CONFIG.FIELD_MAP.logDate.map(k => obj[k]).find(v => v);
-                        const dateVal = parseDate(rawDate);
-                        if (dateVal) {
-                            if (type.includes("銷售DEMO") && user.toLowerCase().includes("ken")) {
-                                if (!salesDemoDate || new Date(dateVal) < new Date(salesDemoDate)) salesDemoDate = dateVal;
-                            }
-                            if (["追蹤", "教育訓練", "拜訪"].some(t => type.includes(t))) {
-                                if (!lastContactDate || new Date(dateVal) > new Date(lastContactDate)) lastContactDate = dateVal;
-                            }
-                        }
-                        Object.values(obj).forEach(v => { if (v && typeof v === 'object') deepScan(v); });
-                    };
-                    deepScan(record);
-                    if (!existingEmail && foundEmail) document.getElementById("f_email").value = foundEmail;
-                    if (salesDemoDate) document.getElementById("f_demo").value = salesDemoDate;
-                    if (lastContactDate) document.getElementById("f_last").value = lastContactDate;
-                    showToast("✅ Ragic 資料深度同步完成");
-                }
+                const result = await resp.json();
+
+                if (result.error) throw new Error(result.error);
+
+                if (result.name) document.getElementById("f_name").value = result.name;
+                if (result.company) document.getElementById("f_company").value = result.company;
+                if (result.email) document.getElementById("f_email").value = result.email;
+                if (result.demoDate) document.getElementById("f_demo").value = result.demoDate;
+                if (result.lastContactDate) document.getElementById("f_last").value = result.lastContactDate;
+
+                showToast("✅ 資料同步完成");
             } catch (e) {
-                showToast("❌ 同步失敗，請確認網址或權限");
+                showToast("❌ 同步失敗：" + e.message);
             } finally {
                 syncBtn.disabled = false;
+                syncBtn.textContent = "🔗 同步網址";
             }
         }
 
@@ -667,7 +644,7 @@
         }
 
         function checkBackupStatus() {
-            const lastExBackup = parseInt(localStorage.getItem(CONFIG.EX_BACKUP_TS_KEY) || 0);
+            const lastExBackup = parseInt(localStorage.getItem(CONFIG.EX_BACKUP_TS_KEY) || "0");
             const dayMs = 24 * 60 * 60 * 1000;
             
             if (Date.now() - lastExBackup > dayMs) {
@@ -759,7 +736,7 @@
             let filtered = contacts.filter((c, index) => {
                 const matchesSearch = keywords.length === 0 || keywords.every(kw => searchCache[index].searchStr.includes(kw));
                 if (!matchesSearch) return false;
-                if (currentFilter === "due") return c.next && c.next <= todayStr;
+                if (currentFilter === "due") return !!(c.next && c.next <= todayStr);
                 if (currentFilter !== "all") return c.tag === currentFilter;
                 return true;
             });
@@ -784,7 +761,7 @@
                     else if (diff === 0) statusClass = "card-today";
                     else if (diff <= 3) statusClass = "card-soon";
                 }
-                const stayDays = c.create_date ? Math.floor((new Date() - new Date(c.create_date))/(1000*60*60*24)) : 0;
+                const stayDays = c.create_date ? Math.floor((new Date().getTime() - new Date(c.create_date).getTime())/(1000*60*60*24)) : 0;
                 const gCalLink = getGoogleCalendarLink(c);
                 const gmailLink = c.email ? `https://mail.google.com/mail/?view=cm&fs=1&to=${c.email}` : '#';
                 
@@ -824,7 +801,7 @@
         async function save() {
             try {
                 if (contacts.length === 0 && localStorage.getItem(CONFIG.DB_KEY)) {
-                    const oldData = JSON.parse(localStorage.getItem(CONFIG.DB_KEY));
+                    const oldData = JSON.parse(localStorage.getItem(CONFIG.DB_KEY) || "[]");
                     if (oldData.length > 5) {
                         if (!confirm("⚠️ 偵測到當前清單為空，確定要刪除所有本機資料嗎？")) {
                             contacts = oldData; render(); return;
@@ -861,7 +838,7 @@
             const id = document.getElementById("f_id").value || "K-" + Date.now();
             const createDate = document.getElementById("f_create_date").value || new Date().toISOString();
             const newData = {
-                id, create_date: createDate, 
+                id, create_date: createDate, 
                 update_ts: Date.now(),
                 name: nameVal,
                 company: companyVal,
@@ -874,9 +851,9 @@
                 next: document.getElementById("f_next").value
             };
 
-            const dupIdx = contacts.findIndex(c => 
-                c.id !== id && 
-                ((c.name === newData.name && c.company === newData.company) || (newData.email && c.email === newData.email))
+            const dupIdx = contacts.findIndex(c => 
+                c.id !== id && 
+                ((c.name === newData.name && c.company === newData.company) || (!!newData.email && c.email === newData.email))
             );
 
             if (dupIdx >= 0 && !document.getElementById("f_id").value) {
@@ -1009,7 +986,7 @@
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Ken_CRM");
             XLSX.writeFile(wb, `Ken_CRM_Backup_${new Date().getTime()}.xlsx`);
-            localStorage.setItem(CONFIG.EX_BACKUP_TS_KEY, Date.now());
+            localStorage.setItem(CONFIG.EX_BACKUP_TS_KEY, Date.now().toString());
             checkBackupStatus();
         };
 
@@ -1049,7 +1026,7 @@
         }
 
         UI.search().oninput = () => { 
-            clearTimeout(searchTimer); 
+            if (searchTimer) clearTimeout(searchTimer); 
             searchTimer = setTimeout(resetPageAndRender, 150); 
         };
 
