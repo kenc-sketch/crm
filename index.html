@@ -111,7 +111,7 @@
     <header>
         <div class="logo">
             Ken的CRM
-            <span class="data-warning" id="backupRemind">⚠️ 中央控管模式</span>
+            <span class="data-warning" id="backupRemind">⚠️ 雲端同步模式</span>
             <span id="syncStatus" style="color: #95a5a6;">(雲端同步：待機)</span>
         </div>
         <div style="display: flex; gap: 10px;">
@@ -226,6 +226,26 @@
         </div>
     </div>
 
+    <div id="loginModal" class="modal" hidden>
+        <div class="modal-bg"></div>
+        <div class="modal-body" style="width: 380px;">
+            <h3 style="text-align: center; color: var(--accent);">🚀 Ken CRM 智慧銷售管家</h3>
+            <p style="font-size: 0.8em; color: #666; text-align: center; margin-bottom: 20px;">請輸入使用者代號與 Ragic Key 開始使用</p>
+            
+            <label>使用者代號 (User ID)</label>
+            <input type="text" id="login_uid" placeholder="例如: ken888">
+            
+            <label>Ragic API Key</label>
+            <input type="password" id="login_rkey" placeholder="貼上您的 Ragic API Key">
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;">
+                <button class="btn btn-main" onclick="authProcess('login')">🔑 登入</button>
+                <button class="btn btn-sub" onclick="authProcess('register')">📝 註冊</button>
+            </div>
+            <div id="login_error" style="color: var(--status-overdue); font-size: 0.8em; margin-top: 10px; text-align: center;"></div>
+        </div>
+    </div>
+
     <div id="actionModal" class="modal" hidden>
         <div class="modal-bg"></div>
         <div class="modal-body">
@@ -252,13 +272,11 @@
     <script>
         /* --- 核心認主與中央控管優化邏輯 --- */
         const urlParams = new URLSearchParams(window.location.search);
-        // 優先從網址參數 fid 取得 ID，若無則讀取本機 localStorage
-        let myFolderId = urlParams.get('fid') || localStorage.getItem('ken_crm_fid');
         
-        // 若網址帶有 fid，則強制存入本機記憶體，達到「認主」效果
-        if (urlParams.get('fid')) {
-            localStorage.setItem('ken_crm_fid', urlParams.get('fid'));
-        }
+        // 優化設定：讀取本機儲存的身分資訊
+        let myFolderId = localStorage.getItem('ken_crm_fid');
+        let myToken = localStorage.getItem('ken_crm_token');
+        let myRagicKey = localStorage.getItem('ken_crm_ragic_key');
 
         const CONFIG = {
             DB_NAME: "KenCRM_DB",
@@ -268,10 +286,12 @@
             TRASH_KEY: "ken_crm_trash",
             BACKUP_TS_KEY: "ken_crm_last_backup",
             EX_BACKUP_TS_KEY: "ken_crm_last_excel_backup",
-            RAGIC_KEY: "bnBxZk9UVG51QklFcHBOdUZKWnlCUnVRQjNUOEg3bE0veSttSjh5UkF5SlpPUUpvK3EvNjhzTVRJSUk5SncvSQ==",
+            // 優化點：不再鎖死 Key，改從 localStorage 讀取
+            RAGIC_KEY: myRagicKey, 
             RAGIC_BASE_URL: "https://ap8.ragic.com/matthmen",
             GOOGLE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwlqyN0ruLWo4VlE1b_6iuImsnycKDbSkTw5G2lcTkiP6cYBaZ1xzqoB3uBH7KhnkXL/exec',
             TARGET_FOLDER_ID: myFolderId,
+            AUTH_TOKEN: myToken,
             PAGE_SIZE: 30,
             AUTO_SYNC_INTERVAL: 10 * 60 * 1000, 
             FIELD_MAP: {
@@ -291,7 +311,8 @@
             syncStatus: () => document.getElementById("syncStatus"),
             search: () => document.getElementById("search"),
             loadMoreBtn: () => document.getElementById("loadMoreBtn"),
-            remind: () => document.getElementById("backupRemind")
+            remind: () => document.getElementById("backupRemind"),
+            loginModal: () => document.getElementById("loginModal")
         };
 
         let contacts = [];
@@ -344,27 +365,76 @@
             }
         };
 
-        async function loadInitialData() {
-            if (!CONFIG.TARGET_FOLDER_ID) {
-                UI.syncStatus().textContent = "(❌ 未綁定資料夾 ID)";
-                const localData = await DB.getAll();
-                if (localData) contacts = localData;
-                render();
+        /* --- 優化區塊：身分驗證程序 --- */
+        async function authProcess(action) {
+            const userId = document.getElementById("login_uid").value.trim();
+            const ragicKey = document.getElementById("login_rkey").value.trim();
+            const errorEl = document.getElementById("login_error");
+
+            if (!userId || !ragicKey) {
+                errorEl.textContent = "⚠️ 請填寫所有欄位";
                 return;
+            }
+
+            errorEl.textContent = "⏳ 驗證中...";
+            
+            try {
+                const resp = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: action,
+                        userId: userId,
+                        ragicKey: ragicKey
+                    })
+                });
+                const result = await resp.json();
+
+                if (result.error) {
+                    errorEl.textContent = "❌ " + result.error;
+                } else {
+                    localStorage.setItem('ken_crm_token', result.token);
+                    localStorage.setItem('ken_crm_fid', result.folderId);
+                    localStorage.setItem('ken_crm_userid', userId);
+                    localStorage.setItem('ken_crm_ragic_key', ragicKey);
+                    
+                    showToast("✅ 驗證成功，正在進入系統...");
+                    location.reload(); 
+                }
+            } catch (e) {
+                errorEl.textContent = "❌ 無法連接至雲端大腦，請檢查網路";
+            }
+        }
+
+        async function loadInitialData() {
+            // 優化點：檢查是否已登入
+            if (!CONFIG.AUTH_TOKEN) {
+                UI.loginModal().hidden = false;
+                return;
+            } else {
+                UI.loginModal().hidden = true;
             }
 
             UI.syncStatus().textContent = "⏳ 正在搜尋雲端最新資料...";
             try {
-                // 攜帶 fid 參數以供 GAS 中央大腦讀取特定使用者的資料
-                const cloudResponse = await fetch(`${CONFIG.GOOGLE_SCRIPT_URL}?action=read&fid=${CONFIG.TARGET_FOLDER_ID}`);
+                // 優化點：使用 POST 通訊協議獲取使用者專屬資料
+                const cloudResponse = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'load',
+                        token: CONFIG.AUTH_TOKEN
+                    })
+                });
+                
                 if (cloudResponse.ok) {
                     const cloudData = await cloudResponse.json();
                     if (Array.isArray(cloudData)) {
                         contacts = cloudData;
                         await DB.saveAll(contacts);
                         UI.syncStatus().textContent = "(✅ 雲端同步成功)";
-                    } else {
-                        throw new Error("Cloud format error");
+                    } else if (cloudData.error) {
+                        // Token 可能失效
+                        localStorage.removeItem('ken_crm_token');
+                        location.reload();
                     }
                 } else {
                     throw new Error("Network error");
@@ -427,9 +497,12 @@
                 const pathParts = url.split('ragic.com/matthmen');
                 if(pathParts.length < 2) throw new Error("網址格式不符");
                 const apiUrl = `${CONFIG.RAGIC_BASE_URL}${pathParts[1].split('?')[0]}/${recordId}?v=3`;
+                
+                // 優化點：使用動態輸入的 RAGIC_KEY
+                const authHeader = 'Basic ' + btoa(CONFIG.RAGIC_KEY + ':');
                 const res = await fetch(apiUrl, {
                     method: 'GET',
-                    headers: { 'Authorization': `Basic ${CONFIG.RAGIC_KEY}` }
+                    headers: { 'Authorization': authHeader }
                 });
                 if (!res.ok) throw new Error("API 存取失敗");
                 const data = await res.json();
@@ -505,7 +578,8 @@
         }
 
         async function syncToCloud(isAuto = false) {
-            if (isSyncing || !CONFIG.TARGET_FOLDER_ID) return;
+            // 優化點：增加 Token 檢查
+            if (isSyncing || !CONFIG.AUTH_TOKEN) return;
             if (!navigator.onLine) {
                 UI.syncStatus().textContent = "(離線：等待網路中)";
                 return;
@@ -519,43 +593,26 @@
             try {
                 const now = Date.now();
                 const nowObj = new Date();
-                const hr = nowObj.getHours();
                 
-                let backupName = "CRM"; 
-                let slotLabel = "最新";
-
-                if (hr >= 0 && hr < 8) {
-                    backupName = "CRM(時間1)";
-                    slotLabel = "時段1";
-                } else if (hr >= 8 && hr < 16) {
-                    backupName = "CRM(時間2)";
-                    slotLabel = "時段2";
+                // 優化點：使用 POST 通訊協議進行 SaaS 式存檔
+                const pushResp = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        action: 'save',
+                        token: CONFIG.AUTH_TOKEN,
+                        filename: 'CRM.json',
+                        data: contacts
+                    })
+                });
+                
+                const result = await pushResp.json();
+                if (result.success) {
+                    statusEl.textContent = `(✅ 同步完成 ${nowObj.toLocaleTimeString()})`;
+                    statusEl.style.color = "#27ae60";
+                    localStorage.setItem(CONFIG.BACKUP_TS_KEY, now);
                 } else {
-                    backupName = "CRM(時間3)";
-                    slotLabel = "時段3";
+                    throw new Error(result.error || "儲存失敗");
                 }
-
-                const pushData = async (fname) => {
-                    await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
-                        method: 'POST',
-                        mode: 'no-cors',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            targetFolderId: CONFIG.TARGET_FOLDER_ID, // 攜帶資料夾 ID 供中央大腦驗證與寫入
-                            filename: fname,
-                            timestamp: now,
-                            data_count: contacts.length,
-                            data: contacts
-                        })
-                    });
-                };
-
-                await pushData(backupName);
-                await pushData("CRM"); 
-
-                statusEl.textContent = `(✅ 同步:${slotLabel} ${nowObj.toLocaleTimeString()})`;
-                statusEl.style.color = "#27ae60";
-                localStorage.setItem(CONFIG.BACKUP_TS_KEY, now);
             } catch (error) {
                 statusEl.textContent = "(同步失敗)"; statusEl.style.color = "#e74c3c";
                 console.error("Cloud Sync Error:", error);
