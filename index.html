@@ -298,7 +298,7 @@
             } catch(e) { return ""; }
         }
 
-        // 優化改善：實施 SHA-256 安全雜湊 (瀏覽器原生)
+        // 優化改善：實施 SHA-256 安全雜湊
         async function secureHash(str) {
             const msgUint8 = new TextEncoder().encode(str);
             const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
@@ -654,7 +654,8 @@
         }
 
         function checkBackupStatus() {
-            const lastExBackup = parseInt(localStorage.getItem(CONFIG.EX_BACKUP_TS_KEY) || "0");
+            const lastExBackupStr = localStorage.getItem(CONFIG.EX_BACKUP_TS_KEY) || "0";
+            const lastExBackup = parseInt(lastExBackupStr);
             const dayMs = 24 * 60 * 60 * 1000;
             
             if (Date.now() - lastExBackup > dayMs) {
@@ -811,7 +812,8 @@
         async function save() {
             try {
                 if (contacts.length === 0 && localStorage.getItem(CONFIG.DB_KEY)) {
-                    const oldData = JSON.parse(localStorage.getItem(CONFIG.DB_KEY) || "[]");
+                    const oldDataStr = localStorage.getItem(CONFIG.DB_KEY) || "[]";
+                    const oldData = JSON.parse(oldDataStr);
                     if (oldData.length > 5) {
                         if (!confirm("⚠️ 偵測到當前清單為空，確定要刪除所有本機資料嗎？")) {
                             contacts = oldData; render(); return;
@@ -882,7 +884,8 @@
         };
 
         function handleNextEntry() {
-            if(document.getElementById("f_name").value.trim()) {
+            const currentName = document.getElementById("f_name").value.trim();
+            if(currentName) {
                 if(processSubmit()) {
                     resetForm();
                     render();
@@ -1055,4 +1058,3 @@
     </script>
 </body>
 </html>
-
