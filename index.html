@@ -230,17 +230,23 @@
         <div class="modal-bg"></div>
         <div class="modal-body" style="width: 380px;">
             <h3 style="text-align: center; color: var(--accent);">🚀 Ken CRM 智慧銷售管家</h3>
-            <p style="font-size: 0.8em; color: #666; text-align: center; margin-bottom: 20px;">請輸入使用者代號與 Ragic Key 開始使用</p>
+            <p style="font-size: 0.8em; color: #666; text-align: center; margin-bottom: 20px;">請輸入使用者代號與密碼開始使用</p>
             
             <label>使用者代號 (User ID)</label>
             <input type="text" id="login_uid" placeholder="例如: ken888">
             
-            <label>Ragic API Key</label>
-            <input type="password" id="login_rkey" placeholder="貼上您的 Ragic API Key">
+            <label>登入密碼 (Password)</label>
+            <input type="password" id="login_pass" placeholder="輸入您的密碼">
             
+            <div id="reg_fields" hidden>
+                <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
+                <label style="color:var(--accent);">首次註冊專用：Ragic API Key</label>
+                <input type="password" id="login_rkey" placeholder="貼上您的 Ragic API Key">
+            </div>
+
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;">
                 <button class="btn btn-main" onclick="authProcess('login')">🔑 登入</button>
-                <button class="btn btn-sub" onclick="authProcess('register')">📝 註冊</button>
+                <button class="btn btn-sub" onclick="toggleRegMode()">📝 註冊模式</button>
             </div>
             <div id="login_error" style="color: var(--status-overdue); font-size: 0.8em; margin-top: 10px; text-align: center;"></div>
         </div>
@@ -270,12 +276,14 @@
 
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <script>
-        /* --- 核心設定與身分資訊 --- */
+        /* --- 核心認主與中央控管優化邏輯 --- */
         const urlParams = new URLSearchParams(window.location.search);
         
-        let myFolderId = localStorage.getItem('ken_crm_fid');
-        let myToken = localStorage.getItem('ken_crm_token');
-        let myRagicKey = localStorage.getItem('ken_crm_ragic_key');
+        // 優化設定：讀取身分資訊 (敏感資訊改存於 sessionStorage 以提高安全性)
+        let storedUserId = localStorage.getItem('ken_crm_userid');
+        let myFolderId = sessionStorage.getItem('ken_crm_fid');
+        let myToken = sessionStorage.getItem('ken_crm_token');
+        let myRagicKey = sessionStorage.getItem('ken_crm_ragic_key');
 
         const CONFIG = {
             DB_NAME: "KenCRM_DB",
@@ -287,7 +295,7 @@
             EX_BACKUP_TS_KEY: "ken_crm_last_excel_backup",
             RAGIC_KEY: myRagicKey, 
             RAGIC_BASE_URL: "https://ap8.ragic.com/matthmen",
-            GOOGLE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxm4MQEBD1wiyj-BofQ1jhfIQ7b0kY5v7ZvYoCdhO3S0nKH4AeK9ieVyXvfjoQuzRSU/exec', 
+            GOOGLE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxm4MQEBD1wiyj-BofQ1jhfIQ7b0kY5v7ZvYoCdhO3S0nKH4AeK9ieVyXvfjoQuzRSU/exec',
             TARGET_FOLDER_ID: myFolderId,
             AUTH_TOKEN: myToken,
             PAGE_SIZE: 30,
@@ -363,47 +371,53 @@
             }
         };
 
-        /* --- 身分驗證與登入流程 --- */
+        /* --- 優化區塊：密碼登入與註冊模式切換 --- */
+        function toggleRegMode() {
+            const regFields = document.getElementById("reg_fields");
+            regFields.hidden = !regFields.hidden;
+        }
+
         async function authProcess(action) {
-            const userId = document.getElementById("login_uid").value.trim();
-            const ragicKey = document.getElementById("login_rkey").value.trim();
+            const uid = document.getElementById("login_uid").value.trim();
+            const pass = document.getElementById("login_pass").value.trim();
+            const rkey = document.getElementById("login_rkey").value.trim();
             const errorEl = document.getElementById("login_error");
 
-            if (!userId || !ragicKey) {
-                errorEl.textContent = "⚠️ 請填寫所有欄位";
-                return;
-            }
+            if (!uid || !pass) { errorEl.textContent = "⚠️ 請填寫 ID 與密碼"; return; }
+            if (!document.getElementById("reg_fields").hidden && !rkey) { errorEl.textContent = "⚠️ 註冊模式需填寫 Ragic Key"; return; }
 
-            errorEl.textContent = "⏳ 正在與中央大腦通訊...";
-            
+            errorEl.textContent = "⏳ 正在通訊中...";
             try {
+                const payload = {
+                    action: action === 'login' ? 'login' : 'register',
+                    userId: uid,
+                    password: pass,
+                    ragicKey: rkey
+                };
                 const resp = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
                     method: 'POST',
-                    body: JSON.stringify({
-                        action: action,
-                        userId: userId,
-                        ragicKey: ragicKey
-                    })
+                    body: JSON.stringify(payload)
                 });
                 const result = await resp.json();
 
                 if (result.error) {
                     errorEl.textContent = "❌ " + result.error;
                 } else {
-                    localStorage.setItem('ken_crm_token', result.token);
-                    localStorage.setItem('ken_crm_fid', result.folderId);
-                    localStorage.setItem('ken_crm_userid', userId);
-                    localStorage.setItem('ken_crm_ragic_key', ragicKey);
-                    
-                    showToast("✅ 驗證成功，正在載入環境...");
-                    setTimeout(() => location.reload(), 800); 
+                    localStorage.setItem('ken_crm_userid', uid);
+                    sessionStorage.setItem('ken_crm_token', result.token);
+                    sessionStorage.setItem('ken_crm_fid', result.folderId);
+                    sessionStorage.setItem('ken_crm_ragic_key', result.ragicKey);
+                    showToast("✅ 驗證成功");
+                    setTimeout(() => location.reload(), 500); 
                 }
             } catch (e) {
-                errorEl.textContent = "❌ 無法連接至雲端伺服器，請檢查網路或網址";
+                errorEl.textContent = "❌ 無法連接伺服器";
             }
         }
 
         async function loadInitialData() {
+            if (storedUserId) document.getElementById("login_uid").value = storedUserId;
+
             if (!CONFIG.AUTH_TOKEN) {
                 UI.loginModal().hidden = false;
                 return;
@@ -428,9 +442,8 @@
                         await DB.saveAll(contacts);
                         UI.syncStatus().textContent = "(✅ 雲端同步成功)";
                     } else if (cloudData.error) {
-                        // 優化點：Token 失效自動登出
-                        showToast("⚠️ 登入資訊已過期，請重新登入");
-                        localStorage.removeItem('ken_crm_token');
+                        sessionStorage.clear();
+                        showToast("⚠️ 憑證失效，請重新登入");
                         setTimeout(() => location.reload(), 1500);
                     }
                 } else {
@@ -453,6 +466,8 @@
             render();
             checkTodayTasksAndNotify();
         }
+
+        /* --- 以下完全保留原始功能函式，嚴格禁止刪減邏輯 --- */
 
         function insertTimestamp() {
             const noteArea = document.getElementById("f_note");
@@ -495,6 +510,7 @@
                 if(pathParts.length < 2) throw new Error("網址格式不符");
                 const apiUrl = `${CONFIG.RAGIC_BASE_URL}${pathParts[1].split('?')[0]}/${recordId}?v=3`;
                 
+                // 使用登入後回傳的 Ragic Key
                 const authHeader = 'Basic ' + btoa(CONFIG.RAGIC_KEY + ':');
                 const res = await fetch(apiUrl, {
                     method: 'GET',
@@ -939,7 +955,7 @@
                             note: (row["記事"] || "").toString()
                         };
                         const idx = contacts.findIndex(c => c.name === n.name && c.company === n.company);
-                        if (idx >= 0) Object.assign(contacts[idx], n); else contacts.push(newData);
+                        if (idx >= 0) Object.assign(contacts[idx], n); else contacts.push(n);
                     });
                     save(); showToast("匯入成功");
                 } catch(err) {
