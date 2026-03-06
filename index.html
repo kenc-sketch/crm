@@ -281,7 +281,14 @@
 
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <script>
-        /* --- 先行定義工具函式，避免 ReferenceError --- */
+        /* --- 核心認主與中央控管優化邏輯 (旗艦 V4.1 基礎對接 V5.0) --- */
+        const urlParams = new URLSearchParams(window.location.search);
+        
+        let storedUserId = localStorage.getItem('ken_crm_userid');
+        let myFolderId = sessionStorage.getItem('ken_crm_fid');
+        let myToken = sessionStorage.getItem('ken_crm_token');
+
+        // --- 先行定義工具函式，避免 ReferenceError ---
         function fastHash(str) {
             if(!str) return "";
             return btoa(str).split('').reverse().join('').slice(0, 32);
@@ -305,12 +312,6 @@
             }));
         }
 
-        /* --- 核心認主與中央控管優化邏輯 (旗艦 V4.1 基礎對接 V5.0) --- */
-        const urlParams = new URLSearchParams(window.location.search);
-        let storedUserId = localStorage.getItem('ken_crm_userid');
-        let myFolderId = sessionStorage.getItem('ken_crm_fid');
-        let myToken = sessionStorage.getItem('ken_crm_token');
-
         const CONFIG = {
             DB_NAME: "KenCRM_DB",
             DB_VERSION: 1,
@@ -330,7 +331,7 @@
                 company: ["1000001", "公司名稱", "客戶名稱", "Company"],
                 email: ["1000005", "1000008", "1000045", "Email", "電子郵件", "預設 EMAIL", "E-mail"],
                 salesUser: ["1000124", "1000010", "User", "業務員", "負責專員 User"],
-                logType: ["1000123", "類型"],
+                logType: ["類型", "1000123"],
                 logDate: ["1000023", "日期", "時間", "最後聯繫日", "建立日期", "排程日期"]
             }
         };
@@ -452,6 +453,10 @@
                         contacts = cloudData;
                         await DB.saveAll(contacts);
                         UI.syncStatus().textContent = "(✅ 雲端同步成功)";
+                    } else if (cloudData.error) {
+                        sessionStorage.clear();
+                        showToast("⚠️ 憑證失效，請重新登入");
+                        setTimeout(() => location.reload(), 1500);
                     }
                 }
             } catch (e) {
@@ -512,7 +517,7 @@
             const localRKey = decryptRKey(encryptedKey, token);
 
             if (!localRKey || localRKey.length < 10) {
-                showToast("❌ 憑證無效，請重新登入");
+                showToast("❌ 憑證失效，請重新登入");
                 return;
             }
 
@@ -537,30 +542,33 @@
 
                 const data = await res.json();
                 
-                // --- 全域深度物件掃描引擎 ---
+                // --- 全域深度掃描器 ---
                 let record = null;
-                const deepSearch = (obj) => {
+                const scanDataBlock = (obj) => {
                     if (!obj || record) return;
                     if (typeof obj === 'object') {
-                        // 檢查屬性 Key 是否包含關鍵標籤或中文字稱呼
+                        // 檢查物件屬性，尋找包含關鍵標籤或編號的區塊
                         const keys = Object.keys(obj);
-                        if (keys.some(k => ["1000001", "1000197", "公司名稱", "聯絡人", "預設聯絡人"].includes(k))) {
+                        const isMatch = keys.some(k => 
+                            ["1000001", "1000197", "1000008", "公司名稱", "聯絡人", "預設聯絡人", "預設 EMAIL"].includes(k)
+                        );
+                        if (isMatch) {
                             record = obj; return;
                         }
-                        // 否則遞迴掃描所有子屬性值
+                        // 如果沒找到，繼續往深層尋找陣列或物件中的子項
                         for (let val of Object.values(obj)) {
-                            if (val && typeof val === 'object') deepSearch(val);
+                            if (val && typeof val === 'object') scanDataBlock(val);
                         }
                     }
                 };
-                deepSearch(data);
+                scanDataBlock(data);
 
                 if (record) {
                     CONFIG.FIELD_MAP.name.some(k => record[k] ? (document.getElementById("f_name").value = record[k], true) : false);
                     CONFIG.FIELD_MAP.company.some(k => record[k] ? (document.getElementById("f_company").value = record[k], true) : false);
                     
                     let foundEmail = "", salesDemoDate = "", lastContactDate = "";
-                    const scanValues = (obj) => {
+                    const deepValueScan = (obj) => {
                         if (!obj || typeof obj !== 'object') return;
                         for (let key of Object.keys(obj)) {
                             if (typeof obj[key] === 'string' && obj[key].includes('@')) foundEmail = obj[key].trim();
@@ -579,17 +587,17 @@
                                 }
                             }
                         }
-                        Object.values(obj).forEach(v => { if (v && typeof v === 'object') scanValues(v); });
+                        Object.values(obj).forEach(v => { if (v && typeof v === 'object') deepValueScan(v); });
                     };
-                    scanValues(record);
+                    deepValueScan(record);
 
                     if (!existingEmail && foundEmail) document.getElementById("f_email").value = foundEmail;
                     if (salesDemoDate) document.getElementById("f_demo").value = salesDemoDate;
                     if (lastContactDate) document.getElementById("f_last").value = lastContactDate;
                     
-                    showToast("✅ Ragic 資料同步完成");
+                    showToast("✅ Ragic 資料帶入完成");
                 } else {
-                    throw new Error("無法定位資料區塊");
+                    throw new Error("無法在回傳內容中定位資料欄位");
                 }
             } catch (e) {
                 console.error("Sync Error Detail:", e);
@@ -776,12 +784,12 @@
                 let statusClass = "card-ok";
                 if (c.next) {
                     const target = new Date(c.next); target.setHours(0,0,0,0);
-                    const diff = Math.round((target - today) / (1000 * 60 * 60 * 24));
+                    const diff = Math.round((target - today) / (1000*60*60*24));
                     if (diff < 0) statusClass = "card-overdue";
                     else if (diff === 0) statusClass = "card-today";
                     else if (diff <= 3) statusClass = "card-soon";
                 }
-                const stayDays = c.create_date ? Math.floor((new Date() - new Date(c.create_date))/(1000 * 60 * 60 * 24)) : 0;
+                const stayDays = c.create_date ? Math.floor((new Date() - new Date(c.create_date))/(1000*60*60*24)) : 0;
                 const gCalLink = getGoogleCalendarLink(c);
                 const gmailLink = c.email ? `https://mail.google.com/mail/?view=cm&fs=1&to=${c.email}` : '#';
                 
