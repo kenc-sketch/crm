@@ -552,13 +552,41 @@
                 const result = await resp.json();
                 if (result.error) throw new Error(result.error);
 
+                // 1. 填入基礎欄位
                 document.getElementById("f_name").value = result.name || "";
                 document.getElementById("f_company").value = result.company || "";
                 document.getElementById("f_email").value = result.email || "";
                 
-                showToast("✅ 同步完成");
+                // 2. 自動掃描日期 (Ken 專屬邏輯)
+                if (result.raw) {
+                    let demoDate = "";
+                    let lastDate = "";
+                    
+                    // 掃描子表格或巢狀結構
+                    Object.values(result.raw).forEach(val => {
+                        if (Array.isArray(val)) {
+                            val.forEach(row => {
+                                const type = (row["類型"] || row["1000123"] || "").toString();
+                                const user = (row["User"] || row["業務員"] || "").toString().toLowerCase();
+                                const date = row["日期"] || row["時間"] || row["1000125"] || "";
+                                
+                                if (user.includes("ken") && date) {
+                                    const fmtDate = date.split(' ')[0].replace(/\//g, '-');
+                                    if (type.includes("銷售DEMO")) demoDate = fmtDate;
+                                    if (type.includes("追蹤") || type.includes("教育訓練")) lastDate = fmtDate;
+                                }
+                            });
+                        }
+                    });
+                    
+                    if (demoDate) document.getElementById("f_demo").value = demoDate;
+                    if (lastDate) document.getElementById("f_last").value = lastDate;
+                }
+                
+                showToast("✅ 同步完成並自動分析日期");
             } catch (e) {
-                showToast("❌ 失敗: " + e.message);
+                showToast("❌ 同步失敗: " + e.message);
+                console.error(e);
             } finally {
                 syncBtn.disabled = false;
                 syncBtn.textContent = "🔗 同步網址";
