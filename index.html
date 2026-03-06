@@ -251,8 +251,8 @@
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;">
-                <button class="btn btn-main" onclick="authProcess('login')">🔑 登入</button>
-                <button class="btn btn-sub" onclick="toggleRegMode()">📝 註冊模式</button>
+                <button class="btn btn-main" onclick="authProcess(document.getElementById('reg_fields').hidden ? 'login' : 'register')">🚀 執行</button>
+                <button class="btn btn-sub" onclick="toggleRegMode()">📝 切換模式</button>
             </div>
             <div id="login_error" style="color: var(--status-overdue); font-size: 0.8em; margin-top: 10px; text-align: center;"></div>
         </div>
@@ -1045,4 +1045,3 @@
     </script>
 </body>
 </html>
-
