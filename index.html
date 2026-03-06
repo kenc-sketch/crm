@@ -293,9 +293,7 @@
         function decryptRKey(encrypted, token) {
             if(!encrypted || !token) return "";
             try { 
-                // 1. 解開 Base64 (GAS 傳回的是 Base64 化的 "Key|Salt")
                 const combined = atob(encrypted); 
-                // 2. 以 "|" 切割，取第一個部分就是原始的 Ragic API Key
                 return combined.split('|')[0]; 
             } catch(e) { 
                 console.error("解密錯誤:", e);
@@ -303,7 +301,6 @@
             }
         }
 
-        // 優化改善：實施端到端雜湊混淆
         function fastHash(str) {
             if(!str) return "";
             return btoa(str).split('').reverse().join('').slice(0, 32);
@@ -317,7 +314,6 @@
             TRASH_KEY: "ken_crm_trash",
             BACKUP_TS_KEY: "ken_crm_last_backup",
             EX_BACKUP_TS_KEY: "ken_crm_last_excel_backup",
-            // 優化區域：移除 CONFIG 全域明文金鑰，改為閉包動態調用
             RAGIC_BASE_URL: "https://ap8.ragic.com/matthmen",
             GOOGLE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxm4MQEBD1wiyj-BofQ1jhfIQ7b0kY5v7ZvYoCdhO3S0nKH4AeK9ieVyXvfjoQuzRSU/exec',
             TARGET_FOLDER_ID: myFolderId,
@@ -411,7 +407,6 @@
 
             errorEl.textContent = "⏳ 正在通訊中...";
             try {
-                // 優化區域：密碼發送前執行 fastHash
                 const payload = { 
                     action: action === 'login' ? 'login' : 'register', 
                     userId: uid, 
@@ -484,7 +479,6 @@
             checkTodayTasksAndNotify();
         }
 
-        // 優化區域：嵌入歷史復原函式
         async function handleRestore(slot) {
             if(!slot) return;
             if(!confirm(`確定要還原到「時段 ${slot}」的資料嗎？這會覆蓋當前所有內容！`)) {
@@ -506,7 +500,6 @@
             finally { document.getElementById("restoreSlot").value = ""; }
         }
 
-        /* --- 原始功能復原區 (0 遺漏) --- */
         function insertTimestamp() {
             const noteArea = document.getElementById("f_note");
             const now = new Date();
@@ -540,15 +533,12 @@
                 return;
             }
             
-            // 取得 Session 資料
             const encryptedKey = sessionStorage.getItem('ken_crm_ragic_key');
             const token = sessionStorage.getItem('ken_crm_token');
-            
-            // 執行解密
             const localRKey = decryptRKey(encryptedKey, token);
 
             if (!localRKey || localRKey.length < 10) {
-                showToast("❌ 憑證無效或解密失敗，請重新登入");
+                showToast("❌ 憑證無效，請重新登入");
                 return;
             }
 
@@ -557,31 +547,27 @@
             showToast("⏳ 正在讀取 Ragic 資料...");
 
             try {
-                const urlParts = url.split('/');
-                const recordId = urlParts.pop().split('?')[0];
-                const pathParts = url.split('ragic.com/matthmen');
-                if(pathParts.length < 2) throw new Error("網址格式不符");
+                const urlObj = new URL(url);
+                const pathSegments = urlObj.pathname.split('/').filter(s => s);
+                const recordId = pathSegments[pathSegments.length - 1]; 
+                const apiPath = urlObj.pathname; 
                 
-                const apiUrl = `${CONFIG.RAGIC_BASE_URL}${pathParts[1].split('?')[0]}/${recordId}?v=3`;
+                if (isNaN(recordId)) throw new Error("無法從網址辨識資料 ID");
                 
-                // 重要修正：Ragic 要求 Basic Auth 格式為 APIKey: (後面要帶冒號)
+                const apiUrl = `https://ap8.ragic.com${apiPath}?v=3`;
                 const authHeader = 'Basic ' + btoa(localRKey + ':');
 
                 const res = await fetch(apiUrl, {
                     method: 'GET',
-                    headers: { 
-                        'Authorization': authHeader,
-                        'Accept': 'application/json'
-                    }
+                    headers: { 'Authorization': authHeader, 'Accept': 'application/json' }
                 });
 
-                if (!res.ok) throw new Error("API 驗證失敗，請檢查 Ragic Key 是否正確");
+                if (!res.ok) throw new Error(`Ragic 拒絕存取 (代碼:${res.status})`);
 
                 const data = await res.json();
                 const record = data[recordId];
 
                 if (record) {
-                    // 帶入姓名與公司
                     CONFIG.FIELD_MAP.name.some(k => record[k] ? (document.getElementById("f_name").value = record[k], true) : false);
                     CONFIG.FIELD_MAP.company.some(k => record[k] ? (document.getElementById("f_company").value = record[k], true) : false);
                     
@@ -589,40 +575,44 @@
                     const deepScan = (obj) => {
                         if (!obj || typeof obj !== 'object') return;
                         for (let key of Object.keys(obj)) {
-                            // 自動識別 Email
-                            if (obj[key] && typeof obj[key] === 'string' && obj[key].includes('@')) foundEmail = obj[key].trim();
-                        }
-                        
-                        // 根據 FIELD_MAP 識別日期與類型
-                        const type = CONFIG.FIELD_MAP.logType.map(k => obj[k]).filter(v => v).join(" ");
-                        const user = CONFIG.FIELD_MAP.salesUser.map(k => obj[k]).filter(v => v).join(" ");
-                        const rawDate = CONFIG.FIELD_MAP.logDate.map(k => obj[k]).find(v => v);
-                        const dateVal = parseDate(rawDate);
+                            if (typeof obj[key] === 'string' && obj[key].includes('@')) foundEmail = obj[key].trim();
+                            
+                            const type = CONFIG.FIELD_MAP.logType.map(k => obj[k]).filter(v => v).join(" ");
+                            const user = CONFIG.FIELD_MAP.salesUser.map(k => obj[k]).filter(v => v).join(" ");
+                            const rawDate = CONFIG.FIELD_MAP.logDate.map(k => obj[k]).find(v => v);
+                            const dateVal = parseDate(rawDate);
 
-                        if (dateVal) {
-                            if (type.includes("銷售DEMO") && user.toLowerCase().includes("ken")) {
-                                if (!salesDemoDate || new Date(dateVal) < new Date(salesDemoDate)) salesDemoDate = dateVal;
-                            }
-                            if (["追蹤", "教育訓練", "拜訪"].some(t => type.includes(t))) {
-                                if (!lastContactDate || new Date(dateVal) > new Date(lastContactDate)) lastContactDate = dateVal;
+                            if (dateVal) {
+                                if (type.includes("銷售DEMO") && user.toLowerCase().includes("ken")) {
+                                    if (!salesDemoDate || new Date(dateVal) < new Date(salesDemoDate)) salesDemoDate = dateVal;
+                                }
+                                if (["追蹤", "教育訓練", "拜訪"].some(t => type.includes(t))) {
+                                    if (!lastContactDate || new Date(dateVal) > new Date(lastContactDate)) lastContactDate = dateVal;
+                                }
                             }
                         }
                         Object.values(obj).forEach(v => { if (v && typeof v === 'object') deepScan(v); });
                     };
-
                     deepScan(record);
 
                     if (!existingEmail && foundEmail) document.getElementById("f_email").value = foundEmail;
                     if (salesDemoDate) document.getElementById("f_demo").value = salesDemoDate;
                     if (lastContactDate) document.getElementById("f_last").value = lastContactDate;
                     
-                    showToast("✅ Ragic 資料深度同步完成");
+                    showToast("✅ Ragic 資料帶入完成");
                 } else {
-                    throw new Error("找不到該筆紀錄內容");
+                    const firstKey = Object.keys(data)[0];
+                    if (data[firstKey] && typeof data[firstKey] === 'object') {
+                        const autoRecord = data[firstKey];
+                        CONFIG.FIELD_MAP.name.some(k => autoRecord[k] ? (document.getElementById("f_name").value = autoRecord[k], true) : false);
+                        showToast("✅ 已自動辨識資料內容");
+                    } else {
+                        throw new Error("找不到匹配的資料 ID");
+                    }
                 }
             } catch (e) {
-                console.error("Ragic 同步失敗:", e);
-                showToast("❌ 同步失敗：" + e.message);
+                console.error("Sync Error:", e);
+                showToast("❌ " + e.message);
             } finally {
                 syncBtn.disabled = false;
             }
@@ -655,13 +645,6 @@
             }
         }
 
-        function updateSearchCache() {
-            searchCache = contacts.map(c => ({
-                id: c.id,
-                searchStr: (`${c.name || ''} ${c.email || ''} ${c.company || ''} ${c.note || ''} ${c.tag || ''} ${c.ragic_url || ''}`).toLowerCase()
-            }));
-        }
-
         async function syncToCloud(isAuto = false) {
             if (isSyncing || !CONFIG.AUTH_TOKEN) return;
             if (!navigator.onLine) {
@@ -677,7 +660,6 @@
             try {
                 const now = Date.now();
                 const nowObj = new Date();
-                
                 const pushResp = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
                     method: 'POST',
                     body: JSON.stringify({
@@ -687,7 +669,6 @@
                         data: contacts
                     })
                 });
-                
                 const result = await pushResp.json();
                 if (result.success) {
                     statusEl.textContent = `(✅ 同步完成 ${nowObj.toLocaleTimeString()})`;
@@ -707,7 +688,6 @@
         function checkBackupStatus() {
             const lastExBackup = parseInt(localStorage.getItem(CONFIG.EX_BACKUP_TS_KEY) || 0);
             const dayMs = 24 * 60 * 60 * 1000;
-            
             if (Date.now() - lastExBackup > dayMs) {
                 UI.remind().innerHTML = "🚨 建議執行 Excel 匯出備份";
                 UI.remind().style.color = "#FF4757";
@@ -790,7 +770,6 @@
             const sortF = document.getElementById("sortField").value;
             const sortO = document.getElementById("sortOrder").value;
             const currentEditId = document.getElementById("f_id").value;
-            
             if (!isAppend) container.textContent = "";
             if (searchCache.length !== contacts.length) updateSearchCache();
 
@@ -825,7 +804,6 @@
                 const stayDays = c.create_date ? Math.floor((new Date() - new Date(c.create_date))/(1000*60*60*24)) : 0;
                 const gCalLink = getGoogleCalendarLink(c);
                 const gmailLink = c.email ? `https://mail.google.com/mail/?view=cm&fs=1&to=${c.email}` : '#';
-                
                 const div = document.createElement("div");
                 div.className = `contact-card ${statusClass} ${c.id === currentEditId ? "editing" : ""}`;
                 div.id = `card-${c.id}`;
@@ -869,14 +847,9 @@
                         }
                     }
                 }
-
                 await DB.saveAll(contacts);
                 const verifyData = await DB.getAll();
-                
-                if (verifyData.length !== contacts.length) {
-                    throw new Error("Verify failed");
-                }
-
+                if (verifyData.length !== contacts.length) throw new Error("Verify failed");
                 localStorage.setItem(CONFIG.DB_KEY, JSON.stringify(contacts));
                 updateSearchCache();
                 render();
@@ -893,17 +866,12 @@
             const nameVal = document.getElementById("f_name").value.trim();
             const emailVal = document.getElementById("f_email").value.trim();
             const companyVal = document.getElementById("f_company").value.trim();
-            
             if (!nameVal) { showToast("⚠️ 請填寫聯絡人名稱"); return false; }
-
             const id = document.getElementById("f_id").value || "K-" + Date.now();
             const createDate = document.getElementById("f_create_date").value || new Date().toISOString();
             const newData = {
-                id, create_date: createDate, 
-                update_ts: Date.now(),
-                name: nameVal,
-                company: companyVal,
-                email: emailVal,
+                id, create_date: createDate, update_ts: Date.now(),
+                name: nameVal, company: companyVal, email: emailVal,
                 ragic_url: document.getElementById("f_ragic_url").value.trim(),
                 note: document.getElementById("f_note").value.trim(),
                 tag: document.getElementById("f_tag").value,
@@ -911,12 +879,7 @@
                 last: document.getElementById("f_last").value,
                 next: document.getElementById("f_next").value
             };
-
-            const dupIdx = contacts.findIndex(c => 
-                c.id !== id && 
-                ((c.name === newData.name && c.company === newData.company) || (newData.email && c.email === newData.email))
-            );
-
+            const dupIdx = contacts.findIndex(c => c.id !== id && ((c.name === newData.name && c.company === newData.company) || (newData.email && c.email === newData.email)));
             if (dupIdx >= 0 && !document.getElementById("f_id").value) {
                 if (!confirm(`重複對象 [${newData.name}]，是否覆蓋更新？`)) return false;
                 Object.assign(contacts[dupIdx], newData);
@@ -934,14 +897,8 @@
 
         function handleNextEntry() {
             if(document.getElementById("f_name").value.trim()) {
-                if(processSubmit()) {
-                    resetForm();
-                    render();
-                    showToast("已儲存並準備下一筆");
-                }
-            } else {
-                resetForm();
-            }
+                if(processSubmit()) { resetForm(); render(); showToast("已儲存並準備下一筆"); }
+            } else { resetForm(); }
         }
 
         function edit(id) {
@@ -1016,8 +973,7 @@
                     rows.forEach(row => {
                         const n = {
                             id: "K-" + Math.random().toString(16).slice(2,10),
-                            create_date: new Date().toISOString(),
-                            update_ts: Date.now(),
+                            create_date: new Date().toISOString(), update_ts: Date.now(),
                             name: (row["聯絡人"] || "未知名").toString(),
                             email: (row["mail"] || "").toString().trim(),
                             company: (row["公司"] || "").toString().trim(),
@@ -1032,17 +988,13 @@
                         if (idx >= 0) Object.assign(contacts[idx], n); else contacts.push(n);
                     });
                     save(); showToast("匯入成功");
-                } catch(err) {
-                    showToast("❌ 檔案讀取失敗");
-                }
+                } catch(err) { showToast("❌ 檔案讀取失敗"); }
             };
             reader.readAsArrayBuffer(file);
         };
 
         document.getElementById("exportBtn").onclick = () => {
-            const dataToExport = contacts.map(c => ({
-                "聯絡人": c.name, "公司": c.company, "mail": c.email, "分類": c.tag, "初次DEMO": c.demo, "上次聯繫": c.last, "再訪時間": c.next, "ragic": c.ragic_url, "記事": c.note
-            }));
+            const dataToExport = contacts.map(c => ({ "聯絡人": c.name, "公司": c.company, "mail": c.email, "分類": c.tag, "初次DEMO": c.demo, "上次聯繫": c.last, "再訪時間": c.next, "ragic": c.ragic_url, "記事": c.note }));
             const ws = XLSX.utils.json_to_sheet(dataToExport);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Ken_CRM");
@@ -1051,52 +1003,17 @@
             checkBackupStatus();
         };
 
-        function resetForm() { 
-            UI.form().reset(); 
-            document.getElementById("f_id").value=""; 
-            document.getElementById("f_create_date").value="";
-            document.getElementById("f_update_ts").value="";
-            render(); 
-        }
+        function resetForm() { UI.form().reset(); document.getElementById("f_id").value=""; document.getElementById("f_create_date").value=""; document.getElementById("f_update_ts").value=""; render(); }
         function closeModal() { document.getElementById("actionModal").hidden = true; }
-        function showToast(m, isDelete = false) { 
-            const t = UI.toast(); 
-            t.innerHTML = isDelete ? `${m} <span onclick="restoreTrash()" style="text-decoration:underline; cursor:pointer; margin-left:10px;">復原</span>` : m;
-            t.hidden = false; 
-            setTimeout(()=>t.hidden=true, 4000); 
-        }
-        function deleteC(id) { 
-            if(confirm("確定刪除此聯絡人？")) { 
-                const target = contacts.find(c => c.id === id);
-                if (!target) return;
-                localStorage.setItem(CONFIG.TRASH_KEY, JSON.stringify(target));
-                contacts = contacts.filter(c=>c.id!==id); 
-                save(); 
-                showToast("已刪除聯絡人", true);
-            } 
-        }
-        function restoreTrash() {
-            const trashedStr = localStorage.getItem(CONFIG.TRASH_KEY);
-            if (trashedStr) {
-                const trashed = JSON.parse(trashedStr);
-                contacts.push(trashed);
-                localStorage.removeItem(CONFIG.TRASH_KEY);
-                save();
-                showToast("✅ 已還原聯絡人");
-            }
-        }
-
-        UI.search().oninput = () => { 
-            clearTimeout(searchTimer); 
-            searchTimer = setTimeout(resetPageAndRender, 150); 
-        };
+        function showToast(m, isDelete = false) { const t = UI.toast(); t.innerHTML = isDelete ? `${m} <span onclick="restoreTrash()" style="text-decoration:underline; cursor:pointer; margin-left:10px;">復原</span>` : m; t.hidden = false; setTimeout(()=>t.hidden=true, 4000); }
+        function deleteC(id) { if(confirm("確定刪除此聯絡人？")) { const target = contacts.find(c => c.id === id); if (!target) return; localStorage.setItem(CONFIG.TRASH_KEY, JSON.stringify(target)); contacts = contacts.filter(c=>c.id!==id); save(); showToast("已刪除聯絡人", true); } }
+        function restoreTrash() { const trashedStr = localStorage.getItem(CONFIG.TRASH_KEY); if (trashedStr) { const trashed = JSON.parse(trashedStr); contacts.push(trashed); localStorage.removeItem(CONFIG.TRASH_KEY); save(); showToast("✅ 已還原聯絡人"); } }
+        UI.search().oninput = () => { clearTimeout(searchTimer); searchTimer = setTimeout(resetPageAndRender, 150); };
 
         (async () => {
             await loadInitialData();
             checkBackupStatus();
-            
             setInterval(() => syncToCloud(true), CONFIG.AUTO_SYNC_INTERVAL);
-            
             setTimeout(() => {
                 const today = new Date().toISOString().split('T')[0];
                 const task = contacts.find(c => c.next && c.next <= today);
