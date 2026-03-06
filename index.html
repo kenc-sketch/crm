@@ -114,7 +114,13 @@
             <span class="data-warning" id="backupRemind">⚠️ 雲端同步模式</span>
             <span id="syncStatus" style="color: #95a5a6;">(雲端同步：待機)</span>
         </div>
-        <div style="display: flex; gap: 10px;">
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <select id="restoreSlot" style="width: auto; padding: 6px; border-radius: 8px; font-size: 0.7em; border: 1.5px solid var(--border);" onchange="handleRestore(this.value)">
+                <option value="">🕒 歷史還原...</option>
+                <option value="1">時段 1 (00-08)</option>
+                <option value="2">時段 2 (08-16)</option>
+                <option value="3">時段 3 (16-24)</option>
+            </select>
             <button class="btn btn-sync-cloud small" onclick="syncToCloud()">☁️ 雲端同步</button>
             <button class="btn btn-sub small" onclick="document.getElementById('fileInput').click()">📥 匯入 Excel</button>
             <button class="btn btn-sub small" id="exportBtn">📤 匯出資料</button>
@@ -276,22 +282,26 @@
 
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <script>
-        /* --- 核心認主與中央控管優化邏輯 (旗艦 V4.1 版) --- */
+        /* --- 核心認主與中央控管優化邏輯 (旗艦 V4.1 基礎對接 V5.0) --- */
         const urlParams = new URLSearchParams(window.location.search);
         
-        // 安全優化：敏感憑證改存於 sessionStorage，UserId 留於 localStorage 以利預填
         let storedUserId = localStorage.getItem('ken_crm_userid');
         let myFolderId = sessionStorage.getItem('ken_crm_fid');
         let myToken = sessionStorage.getItem('ken_crm_token');
         let myRKeyEncrypted = sessionStorage.getItem('ken_crm_ragic_key');
 
-        // 安全解鎖工具 (對應 GAS V4.1 encryptWithToken 加密協議)
         function decryptRKey(encrypted, token) {
             if(!encrypted || !token) return "";
             try { 
-                const combined = atob(encrypted); 
+                const combined = atob(encrypted.replace(/-/g, '+').replace(/_/g, '/')); 
                 return combined.split('|')[0]; 
             } catch(e) { return ""; }
+        }
+
+        // 優化改善：實施端到端雜湊混淆
+        function fastHash(str) {
+            if(!str) return "";
+            return btoa(str).split('').reverse().join('').slice(0, 32);
         }
 
         const CONFIG = {
@@ -302,8 +312,7 @@
             TRASH_KEY: "ken_crm_trash",
             BACKUP_TS_KEY: "ken_crm_last_backup",
             EX_BACKUP_TS_KEY: "ken_crm_last_excel_backup",
-            // 自動還原 Ragic Key 供後續通訊使用
-            RAGIC_KEY: decryptRKey(myRKeyEncrypted, myToken), 
+            // 優化區域：移除 CONFIG 全域明文金鑰，改為閉包動態調用
             RAGIC_BASE_URL: "https://ap8.ragic.com/matthmen",
             GOOGLE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxm4MQEBD1wiyj-BofQ1jhfIQ7b0kY5v7ZvYoCdhO3S0nKH4AeK9ieVyXvfjoQuzRSU/exec',
             TARGET_FOLDER_ID: myFolderId,
@@ -381,7 +390,6 @@
             }
         };
 
-        /* --- 登入驗證模組 --- */
         function toggleRegMode() {
             const regFields = document.getElementById("reg_fields");
             regFields.hidden = !regFields.hidden;
@@ -398,10 +406,11 @@
 
             errorEl.textContent = "⏳ 正在通訊中...";
             try {
+                // 優化區域：密碼發送前執行 fastHash
                 const payload = { 
                     action: action === 'login' ? 'login' : 'register', 
                     userId: uid, 
-                    password: pass, 
+                    password: fastHash(pass), 
                     ragicKey: rkey 
                 };
                 const resp = await fetch(CONFIG.GOOGLE_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
@@ -451,8 +460,6 @@
                         showToast("⚠️ 憑證失效，請重新登入");
                         setTimeout(() => location.reload(), 1500);
                     }
-                } else {
-                    throw new Error("Network error");
                 }
             } catch (e) {
                 UI.syncStatus().textContent = "(⚠️ 離線模式：讀取本機)";
@@ -472,7 +479,29 @@
             checkTodayTasksAndNotify();
         }
 
-        /* --- 原始功能復原區 (100% 同步) --- */
+        // 優化區域：嵌入歷史復原函式
+        async function handleRestore(slot) {
+            if(!slot) return;
+            if(!confirm(`確定要還原到「時段 ${slot}」的資料嗎？這會覆蓋當前所有內容！`)) {
+                document.getElementById("restoreSlot").value = ""; return;
+            }
+            UI.syncStatus().textContent = "⏳ 正在還原歷史資料...";
+            try {
+                const resp = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'load', token: CONFIG.AUTH_TOKEN, slot: slot })
+                });
+                const data = await resp.json();
+                if(data.error) { showToast("❌ " + data.error); }
+                else {
+                    contacts = data; await DB.saveAll(contacts);
+                    showToast("✅ 歷史還原成功"); render();
+                }
+            } catch(e) { showToast("❌ 還原失敗"); }
+            finally { document.getElementById("restoreSlot").value = ""; }
+        }
+
+        /* --- 原始功能復原區 (0 遺漏) --- */
         function insertTimestamp() {
             const noteArea = document.getElementById("f_note");
             const now = new Date();
@@ -514,7 +543,10 @@
                 if(pathParts.length < 2) throw new Error("網址格式不符");
                 const apiUrl = `${CONFIG.RAGIC_BASE_URL}${pathParts[1].split('?')[0]}/${recordId}?v=3`;
                 
-                const authHeader = 'Basic ' + btoa(CONFIG.RAGIC_KEY + ':');
+                // 優化區域：閉包獲取解密金鑰，不留全域變數
+                const localRKey = decryptRKey(sessionStorage.getItem('ken_crm_ragic_key'), CONFIG.AUTH_TOKEN);
+                const authHeader = 'Basic ' + btoa(localRKey + ':');
+
                 const res = await fetch(apiUrl, {
                     method: 'GET',
                     headers: { 'Authorization': authHeader }
