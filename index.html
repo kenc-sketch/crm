@@ -20,7 +20,6 @@
         .main-container { display: grid; grid-template-columns: 380px 1fr; gap: 0; flex: 1; overflow: hidden; }
         @media (max-width: 900px) { .main-container { grid-template-columns: 1fr; overflow-y: auto; } }
 
-        /* Sidebar */
         .sidebar { background: white; border-right: 1px solid var(--border); padding: 20px; overflow-y: auto; }
         h2 { font-size: 1.1em; color: var(--accent); margin-top: 0; border-left: 5px solid var(--accent); padding-left: 10px; margin-bottom: 20px; }
         label { display: block; margin: 12px 0 4px; font-weight: 700; font-size: 0.85em; color: #57606F; }
@@ -282,7 +281,9 @@
 
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <script>
+        /* --- 核心認主與中央控管優化邏輯 (旗艦 V4.1 基礎對接 V5.0) --- */
         const urlParams = new URLSearchParams(window.location.search);
+        
         let storedUserId = localStorage.getItem('ken_crm_userid');
         let myFolderId = sessionStorage.getItem('ken_crm_fid');
         let myToken = sessionStorage.getItem('ken_crm_token');
@@ -318,12 +319,12 @@
             PAGE_SIZE: 30,
             AUTO_SYNC_INTERVAL: 10 * 60 * 1000, 
             FIELD_MAP: {
-                name: ["預設聯絡人", "1000197", "聯絡人", "姓名", "窗口", "Customer Name"],
+                name: ["1000197", "預設聯絡人", "聯絡人", "姓名", "窗口", "Customer Name"],
                 company: ["1000001", "公司名稱", "客戶名稱", "Company"],
-                email: ["Email", "電子郵件", "1000005", "1000045", "E-mail"],
-                salesUser: ["User", "業務員", "負責專員 User", "1000124", "1000010"],
-                logType: ["類型", "1000123"],
-                logDate: ["日期", "時間", "最後聯繫日", "建立日期", "1000023"]
+                email: ["1000005", "1000008", "1000045", "Email", "電子郵件", "預設 EMAIL", "E-mail"],
+                salesUser: ["1000124", "1000010", "User", "業務員", "負責專員 User"],
+                logType: ["1000123", "類型"],
+                logDate: ["1000023", "日期", "時間", "最後聯繫日", "建立日期", "排程日期"]
             }
         };
 
@@ -356,8 +357,14 @@
                             db.createObjectStore(CONFIG.STORE_NAME, { keyPath: "id" });
                         }
                     };
-                    request.onsuccess = (e) => resolve(e.target.result);
-                    request.onerror = () => reject("DB Init Error");
+                    request.onsuccess = async (e) => {
+                        const db = e.target.result;
+                        if (navigator.storage && navigator.storage.persist) {
+                            await navigator.storage.persist();
+                        }
+                        resolve(db);
+                    };
+                    request.onerror = (e) => reject("DB Init Error");
                 });
             },
             async getAll() {
@@ -438,11 +445,16 @@
                         contacts = cloudData;
                         await DB.saveAll(contacts);
                         UI.syncStatus().textContent = "(✅ 雲端同步成功)";
+                    } else if (cloudData.error) {
+                        sessionStorage.clear();
+                        showToast("⚠️ 憑證失效，請重新登入");
+                        setTimeout(() => location.reload(), 1500);
                     }
                 }
             } catch (e) {
                 UI.syncStatus().textContent = "(⚠️ 離線模式：讀取本機)";
-                contacts = await DB.getAll() || [];
+                const localData = await DB.getAll();
+                contacts = localData || [];
             }
             updateSearchCache();
             render();
@@ -513,11 +525,13 @@
 
             if (syncBtn.disabled) return;
             syncBtn.disabled = true;
-            showToast("⏳ 正在讀取 Ragic 資料...");
+            showToast("⏳ 正在深度搜尋資料內容...");
 
             try {
                 const urlObj = new URL(url);
-                const apiPath = urlObj.pathname.endsWith('.json') ? urlObj.pathname : urlObj.pathname + '.json';
+                let apiPath = urlObj.pathname;
+                if (!apiPath.endsWith('.json')) apiPath += '.json';
+                
                 const apiUrl = `${CONFIG.RAGIC_BASE_URL}${apiPath}?v=3`;
                 const authHeader = 'Basic ' + btoa(localRKey + ':');
 
@@ -530,19 +544,20 @@
 
                 const data = await res.json();
                 
-                // --- 全方位物件掃描器 ---
+                // --- 智慧深度遍歷引擎 ---
                 let record = null;
-                const findData = (obj) => {
+                const searchData = (obj) => {
                     if (!obj || record) return;
                     if (typeof obj === 'object') {
-                        // 特徵辨識：尋找包含關鍵欄位編號的物件
-                        if (obj["1000001"] || obj["1000197"]) {
+                        // 檢查物件屬性，尋找包含中文字稱呼或關鍵編號的區塊
+                        const keys = Object.keys(obj);
+                        if (keys.some(k => ["1000001", "1000197", "公司名稱", "聯絡人", "預設聯絡人"].includes(k))) {
                             record = obj; return;
                         }
-                        Object.values(obj).forEach(val => findData(val));
+                        Object.values(obj).forEach(val => searchData(val));
                     }
                 };
-                findData(data);
+                searchData(data);
 
                 if (record) {
                     CONFIG.FIELD_MAP.name.some(k => record[k] ? (document.getElementById("f_name").value = record[k], true) : false);
@@ -576,13 +591,13 @@
                     if (salesDemoDate) document.getElementById("f_demo").value = salesDemoDate;
                     if (lastContactDate) document.getElementById("f_last").value = lastContactDate;
                     
-                    showToast("✅ Ragic 資料同步完成");
+                    showToast("✅ Ragic 資料深度帶入完成");
                 } else {
-                    throw new Error("無法識別資料結構");
+                    throw new Error("無法在回傳內容中定位資料欄位");
                 }
             } catch (e) {
-                console.error("Sync Error Detail:", e);
-                showToast("❌ 同步失敗：" + e.message);
+                console.error("Ragic Sync Error:", e);
+                showToast("❌ " + e.message);
             } finally {
                 syncBtn.disabled = false;
             }
@@ -613,13 +628,6 @@
             } else {
                 showToast("❌ 通知權限已遭拒絕");
             }
-        }
-
-        function updateSearchCache() {
-            searchCache = contacts.map(c => ({
-                id: c.id,
-                searchStr: (`${c.name || ''} ${c.email || ''} ${c.company || ''} ${c.note || ''} ${c.tag || ''}`).toLowerCase()
-            }));
         }
 
         async function syncToCloud(isAuto = false) {
@@ -745,6 +753,7 @@
             const sortF = document.getElementById("sortField").value;
             const sortO = document.getElementById("sortOrder").value;
             const currentEditId = document.getElementById("f_id").value;
+            
             if (!isAppend) container.textContent = "";
             if (searchCache.length !== contacts.length) updateSearchCache();
 
@@ -779,6 +788,7 @@
                 const stayDays = c.create_date ? Math.floor((new Date() - new Date(c.create_date))/(1000*60*60*24)) : 0;
                 const gCalLink = getGoogleCalendarLink(c);
                 const gmailLink = c.email ? `https://mail.google.com/mail/?view=cm&fs=1&to=${c.email}` : '#';
+                
                 const div = document.createElement("div");
                 div.className = `contact-card ${statusClass} ${c.id === currentEditId ? "editing" : ""}`;
                 div.id = `card-${c.id}`;
@@ -822,9 +832,14 @@
                         }
                     }
                 }
+
                 await DB.saveAll(contacts);
                 const verifyData = await DB.getAll();
-                if (verifyData.length !== contacts.length) throw new Error("Verify failed");
+                
+                if (verifyData.length !== contacts.length) {
+                    throw new Error("Verify failed");
+                }
+
                 localStorage.setItem(CONFIG.DB_KEY, JSON.stringify(contacts));
                 updateSearchCache();
                 render();
@@ -841,12 +856,17 @@
             const nameVal = document.getElementById("f_name").value.trim();
             const emailVal = document.getElementById("f_email").value.trim();
             const companyVal = document.getElementById("f_company").value.trim();
+            
             if (!nameVal) { showToast("⚠️ 請填寫聯絡人名稱"); return false; }
+
             const id = document.getElementById("f_id").value || "K-" + Date.now();
             const createDate = document.getElementById("f_create_date").value || new Date().toISOString();
             const newData = {
-                id, create_date: createDate, update_ts: Date.now(),
-                name: nameVal, company: companyVal, email: emailVal,
+                id, create_date: createDate, 
+                update_ts: Date.now(),
+                name: nameVal,
+                company: companyVal,
+                email: emailVal,
                 ragic_url: document.getElementById("f_ragic_url").value.trim(),
                 note: document.getElementById("f_note").value.trim(),
                 tag: document.getElementById("f_tag").value,
@@ -854,7 +874,12 @@
                 last: document.getElementById("f_last").value,
                 next: document.getElementById("f_next").value
             };
-            const dupIdx = contacts.findIndex(c => c.id !== id && ((c.name === newData.name && c.company === newData.company) || (newData.email && c.email === newData.email)));
+
+            const dupIdx = contacts.findIndex(c => 
+                c.id !== id && 
+                ((c.name === newData.name && c.company === newData.company) || (newData.email && c.email === newData.email))
+            );
+
             if (dupIdx >= 0 && !document.getElementById("f_id").value) {
                 if (!confirm(`重複對象 [${newData.name}]，是否覆蓋更新？`)) return false;
                 Object.assign(contacts[dupIdx], newData);
@@ -872,8 +897,14 @@
 
         function handleNextEntry() {
             if(document.getElementById("f_name").value.trim()) {
-                if(processSubmit()) { resetForm(); render(); showToast("已儲存並準備下一筆"); }
-            } else { resetForm(); }
+                if(processSubmit()) {
+                    resetForm();
+                    render();
+                    showToast("已儲存並準備下一筆");
+                }
+            } else {
+                resetForm();
+            }
         }
 
         function edit(id) {
@@ -948,7 +979,8 @@
                     rows.forEach(row => {
                         const n = {
                             id: "K-" + Math.random().toString(16).slice(2,10),
-                            create_date: new Date().toISOString(), update_ts: Date.now(),
+                            create_date: new Date().toISOString(),
+                            update_ts: Date.now(),
                             name: (row["聯絡人"] || "未知名").toString(),
                             email: (row["mail"] || "").toString().trim(),
                             company: (row["公司"] || "").toString().trim(),
@@ -963,13 +995,17 @@
                         if (idx >= 0) Object.assign(contacts[idx], n); else contacts.push(n);
                     });
                     save(); showToast("匯入成功");
-                } catch(err) { showToast("❌ 檔案讀取失敗"); }
+                } catch(err) {
+                    showToast("❌ 檔案讀取失敗");
+                }
             };
             reader.readAsArrayBuffer(file);
         };
 
         document.getElementById("exportBtn").onclick = () => {
-            const dataToExport = contacts.map(c => ({ "聯絡人": c.name, "公司": c.company, "mail": c.email, "分類": c.tag, "初次DEMO": c.demo, "上次聯繫": c.last, "再訪時間": c.next, "ragic": c.ragic_url, "記事": c.note }));
+            const dataToExport = contacts.map(c => ({
+                "聯絡人": c.name, "公司": c.company, "mail": c.email, "分類": c.tag, "初次DEMO": c.demo, "上次聯繫": c.last, "再訪時間": c.next, "ragic": c.ragic_url, "記事": c.note
+            }));
             const ws = XLSX.utils.json_to_sheet(dataToExport);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Ken_CRM");
@@ -978,17 +1014,52 @@
             checkBackupStatus();
         };
 
-        function resetForm() { UI.form().reset(); document.getElementById("f_id").value=""; document.getElementById("f_create_date").value=""; document.getElementById("f_update_ts").value=""; render(); }
+        function resetForm() { 
+            UI.form().reset(); 
+            document.getElementById("f_id").value=""; 
+            document.getElementById("f_create_date").value="";
+            document.getElementById("f_update_ts").value="";
+            render(); 
+        }
         function closeModal() { document.getElementById("actionModal").hidden = true; }
-        function showToast(m, isDelete = false) { const t = UI.toast(); t.innerHTML = isDelete ? `${m} <span onclick="restoreTrash()" style="text-decoration:underline; cursor:pointer; margin-left:10px;">復原</span>` : m; t.hidden = false; setTimeout(()=>t.hidden=true, 4000); }
-        function deleteC(id) { if(confirm("確定刪除此聯絡人？")) { const target = contacts.find(c => c.id === id); if (!target) return; localStorage.setItem(CONFIG.TRASH_KEY, JSON.stringify(target)); contacts = contacts.filter(c=>c.id!==id); save(); showToast("已刪除聯絡人", true); } }
-        function restoreTrash() { const trashedStr = localStorage.getItem(CONFIG.TRASH_KEY); if (trashedStr) { const trashed = JSON.parse(trashedStr); contacts.push(trashed); localStorage.removeItem(CONFIG.TRASH_KEY); save(); showToast("✅ 已還原聯絡人"); } }
-        UI.search().oninput = () => { clearTimeout(searchTimer); searchTimer = setTimeout(resetPageAndRender, 150); };
+        function showToast(m, isDelete = false) { 
+            const t = UI.toast(); 
+            t.innerHTML = isDelete ? `${m} <span onclick="restoreTrash()" style="text-decoration:underline; cursor:pointer; margin-left:10px;">復原</span>` : m;
+            t.hidden = false; 
+            setTimeout(()=>t.hidden=true, 4000); 
+        }
+        function deleteC(id) { 
+            if(confirm("確定刪除此聯絡人？")) { 
+                const target = contacts.find(c => c.id === id);
+                if (!target) return;
+                localStorage.setItem(CONFIG.TRASH_KEY, JSON.stringify(target));
+                contacts = contacts.filter(c=>c.id!==id); 
+                save(); 
+                showToast("已刪除聯絡人", true);
+            } 
+        }
+        function restoreTrash() {
+            const trashedStr = localStorage.getItem(CONFIG.TRASH_KEY);
+            if (trashedStr) {
+                const trashed = JSON.parse(trashedStr);
+                contacts.push(trashed);
+                localStorage.removeItem(CONFIG.TRASH_KEY);
+                save();
+                showToast("✅ 已還原聯絡人");
+            }
+        }
+
+        UI.search().oninput = () => { 
+            clearTimeout(searchTimer); 
+            searchTimer = setTimeout(resetPageAndRender, 150); 
+        };
 
         (async () => {
             await loadInitialData();
             checkBackupStatus();
+            
             setInterval(() => syncToCloud(true), CONFIG.AUTO_SYNC_INTERVAL);
+            
             setTimeout(() => {
                 const today = new Date().toISOString().split('T')[0];
                 const task = contacts.find(c => c.next && c.next <= today);
