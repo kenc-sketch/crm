@@ -533,40 +533,50 @@
         }
 
         async function handleUrlSync() {
-            const syncBtn = document.getElementById("syncBtn");
-            const url = document.getElementById("f_ragic_url").value.trim();
-            if (!url) return;
-            
-            syncBtn.disabled = true;
-            syncBtn.textContent = "⏳";
-            
-            try {
-                const resp = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        action: 'fetchRagic',
-                        token: CONFIG.AUTH_TOKEN,
-                        ragicUrl: url
-                    })
-                });
-                const result = await resp.json();
-                if (result.error) throw new Error(result.error);
+    const syncBtn = document.getElementById("syncBtn");
+    const url = document.getElementById("f_ragic_url").value.trim();
+    if (!url) return;
+    
+    syncBtn.disabled = true;
+    syncBtn.textContent = "⏳";
+    
+    try {
+        const resp = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'fetchRagic',
+                token: CONFIG.AUTH_TOKEN,
+                ragicUrl: url
+            })
+        });
+        const result = await resp.json();
+        if (result.error) throw new Error(result.error);
 
-                // 填入大腦抓到的資料
-                if (result.name) document.getElementById("f_name").value = result.name;
-                if (result.company) document.getElementById("f_company").value = result.company;
-                if (result.email) document.getElementById("f_email").value = result.email;
-                if (result.demo) document.getElementById("f_demo").value = result.demo;
-                if (result.last) document.getElementById("f_last").value = result.last;
-                
-                showToast("✅ 同步完成");
-            } catch (e) {
-                showToast("❌ " + e.message);
-            } finally {
-                syncBtn.disabled = false;
-                syncBtn.textContent = "🔗 同步網址";
-            }
+        // 填入資料並檢查是否真的有拿到東西
+        const nameEl = document.getElementById("f_name");
+        const compEl = document.getElementById("f_company");
+        const emailEl = document.getElementById("f_email");
+
+        nameEl.value = result.name || "";
+        compEl.value = result.company || "";
+        emailEl.value = result.email || "";
+        
+        if (result.demo) document.getElementById("f_demo").value = result.demo;
+        if (result.last) document.getElementById("f_last").value = result.last;
+
+        // 如果連姓名和公司都是空的，就代表解析失敗
+        if (!result.name && !result.company) {
+            showToast("⚠️ 已連線，但表單欄位不匹配");
+        } else {
+            showToast("✅ 資料對齊完成");
         }
+    } catch (e) {
+        showToast("❌ 失敗: " + e.message);
+    } finally {
+        syncBtn.disabled = false;
+        syncBtn.textContent = "🔗 同步網址";
+    }
+}
 
         async function checkTodayTasksAndNotify() {
             if (!("Notification" in window)) return;
@@ -1047,3 +1057,4 @@
         })();
     </script>
 </body></html>
+
