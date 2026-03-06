@@ -111,7 +111,7 @@
     <header>
         <div class="logo">
             Ken的CRM
-            <span class="data-warning" id="backupRemind">⚠️ 雲端同步模式</span>
+            <span class="data-warning" id="backupRemind">⚠️ 中央控管模式</span>
             <span id="syncStatus" style="color: #95a5a6;">(雲端同步：待機)</span>
         </div>
         <div style="display: flex; gap: 10px; align-items: center;">
@@ -552,41 +552,16 @@
                 const result = await resp.json();
                 if (result.error) throw new Error(result.error);
 
-                // 1. 填入基礎欄位
-                document.getElementById("f_name").value = result.name || "";
-                document.getElementById("f_company").value = result.company || "";
-                document.getElementById("f_email").value = result.email || "";
+                // 填入大腦抓到的資料
+                if (result.name) document.getElementById("f_name").value = result.name;
+                if (result.company) document.getElementById("f_company").value = result.company;
+                if (result.email) document.getElementById("f_email").value = result.email;
+                if (result.demo) document.getElementById("f_demo").value = result.demo;
+                if (result.last) document.getElementById("f_last").value = result.last;
                 
-                // 2. 自動掃描日期 (Ken 專屬邏輯)
-                if (result.raw) {
-                    let demoDate = "";
-                    let lastDate = "";
-                    
-                    // 掃描子表格或巢狀結構
-                    Object.values(result.raw).forEach(val => {
-                        if (Array.isArray(val)) {
-                            val.forEach(row => {
-                                const type = (row["類型"] || row["1000123"] || "").toString();
-                                const user = (row["User"] || row["業務員"] || "").toString().toLowerCase();
-                                const date = row["日期"] || row["時間"] || row["1000125"] || "";
-                                
-                                if (user.includes("ken") && date) {
-                                    const fmtDate = date.split(' ')[0].replace(/\//g, '-');
-                                    if (type.includes("銷售DEMO")) demoDate = fmtDate;
-                                    if (type.includes("追蹤") || type.includes("教育訓練")) lastDate = fmtDate;
-                                }
-                            });
-                        }
-                    });
-                    
-                    if (demoDate) document.getElementById("f_demo").value = demoDate;
-                    if (lastDate) document.getElementById("f_last").value = lastDate;
-                }
-                
-                showToast("✅ 同步完成並自動分析日期");
+                showToast("✅ 同步完成");
             } catch (e) {
-                showToast("❌ 同步失敗: " + e.message);
-                console.error(e);
+                showToast("❌ " + e.message);
             } finally {
                 syncBtn.disabled = false;
                 syncBtn.textContent = "🔗 同步網址";
@@ -996,7 +971,7 @@
                             note: (row["記事"] || "").toString()
                         };
                         const idx = contacts.findIndex(c => c.name === n.name && c.company === n.company);
-                        if (idx >= 0) Object.assign(contacts[idx], n); else contacts.push(n);
+                        if (idx >= 0) Object.assign(contacts[idx], n); else contacts.push(newData);
                     });
                     save(); showToast("匯入成功");
                 } catch(err) {
