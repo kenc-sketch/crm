@@ -327,7 +327,7 @@
             PAGE_SIZE: 30,
             AUTO_SYNC_INTERVAL: 10 * 60 * 1000, 
             FIELD_MAP: {
-                name: ["1000197", "預設聯絡人", "聯絡人", "姓名", "窗口", "Customer Name"],
+                name: ["1000197", "預設聯絡人", "聯絡人", "姓名", "窗口", "Customer Name", "聯絡人窗口"],
                 company: ["1000001", "公司名稱", "客戶名稱", "Company"],
                 email: ["1000005", "1000008", "1000045", "Email", "電子郵件", "預設 EMAIL", "E-mail"],
                 salesUser: ["1000124", "1000010", "User", "業務員", "負責專員 User"],
@@ -502,122 +502,110 @@
         }
 
         async function handleUrlSync() {
-    const syncBtn = document.getElementById("syncBtn");
-    const urlInput = document.getElementById("f_ragic_url");
-    let url = urlInput.value.trim();
-
-    if (!url || !url.includes("ragic.com")) {
-        showToast("⚠️ 請輸入有效的 Ragic 網址");
-        return;
-    }
-
-    // --- 自動修正網址格式 ---
-    // 將 .../forms2/1/20362?PAGEID=LS0 轉換為標準 API 格式
-    try {
-        let urlObj = new URL(url);
-        let pathParts = urlObj.pathname.split('/').filter(p => p); 
-        // pathParts 預期為 ["matthmen", "forms2", "1", "20362"]
-        
-        if (pathParts.length >= 4) {
-            const entryId = pathParts[3];
-            const basePath = `/${pathParts[0]}/${pathParts[1]}/${pathParts[2]}`;
-            // 重新建構網址，確保抓到的是該筆資料的 JSON
-            url = `https://ap8.ragic.com${basePath}.json?where=1000123,eq,${entryId}&v=3`; 
-            // 注意：1000123 需確認是否為該表單的 Key 欄位，若不確定，下方的掃描器會補償
-        } else if (!url.endsWith('.json')) {
-            urlObj.pathname += '.json';
-            url = urlObj.toString();
-        }
-    } catch (e) {
-        showToast("❌ 網址解析失敗");
-        return;
-    }
-
-    const encryptedKey = sessionStorage.getItem('ken_crm_ragic_key');
-    const token = sessionStorage.getItem('ken_crm_token');
-    const localRKey = decryptRKey(encryptedKey, token);
-
-    if (syncBtn.disabled) return;
-    syncBtn.disabled = true;
-    showToast("⏳ 正在跨網域獲取資料...");
-
-    try {
-        const authHeader = 'Basic ' + btoa(localRKey + ':');
-        const res = await fetch(url, {
-            method: 'GET',
-            headers: { 'Authorization': authHeader, 'Accept': 'application/json' },
-            mode: 'cors' // 強制開啟 CORS 模式
-        });
-
-        if (!res.ok) throw new Error(`Ragic 回應錯誤 (${res.status})`);
-
-        const data = await res.json();
-        
-        // --- 強化版資料掃描器 ---
-        let record = null;
-        const scanDataBlock = (obj) => {
-            if (!obj || record) return;
-            if (typeof obj === 'object') {
-                const keys = Object.keys(obj);
-                // 只要物件內包含任何一個你知道的欄位 ID 或名稱，就認定它是資料塊
-                const knownKeys = ["1000197", "1000001", "1000008", "聯絡人", "公司名稱", "姓名"];
-                if (keys.some(k => knownKeys.includes(k))) {
-                    record = obj; 
-                    return;
-                }
-                for (let val of Object.values(obj)) {
-                    if (val && typeof val === 'object') scanDataBlock(val);
-                }
-            }
-        };
-        scanDataBlock(data);
-
-        if (record) {
-            // 填入資料 (名稱、公司、Email...)
-            const mapField = (targetId, mapArray) => {
-                mapArray.some(k => record[k] ? (document.getElementById(targetId).value = record[k], true) : false);
-            };
-
-            mapField("f_name", CONFIG.FIELD_MAP.name);
-            mapField("f_company", CONFIG.FIELD_MAP.company);
-            mapField("f_email", CONFIG.FIELD_MAP.email);
-            
-            // 深度掃描日期
-            let foundEmail = "", salesDemoDate = "", lastContactDate = "";
-            const deepValueScan = (obj) => {
-                if (!obj || typeof obj !== 'object') return;
-                for (let key of Object.keys(obj)) {
-                    if (typeof obj[key] === 'string' && obj[key].includes('@')) foundEmail = obj[key].trim();
-                    const type = CONFIG.FIELD_MAP.logType.map(k => obj[k]).filter(v => v).join(" ");
-                    const user = CONFIG.FIELD_MAP.salesUser.map(k => obj[k]).filter(v => v).join(" ");
-                    const rawDate = CONFIG.FIELD_MAP.logDate.map(k => obj[k]).find(v => v);
-                    const dateVal = parseDate(rawDate);
-                    if (dateVal) {
-                        if (type.includes("銷售DEMO") && user.toLowerCase().includes("ken")) {
-                            if (!salesDemoDate || new Date(dateVal) < new Date(salesDemoDate)) salesDemoDate = dateVal;
-                        }
-                        if (["追蹤", "教育訓練", "拜訪", "建立"].some(t => type.includes(t))) {
-                            if (!lastContactDate || new Date(dateVal) > new Date(lastContactDate)) lastContactDate = dateVal;
-                        }
-                    }
+            const syncBtn = document.getElementById("syncBtn");
+            let rawUrl = document.getElementById("f_ragic_url").value.trim();
+            if (!rawUrl || !rawUrl.includes("ragic.com")) { showToast("⚠️ 請輸入有效的 Ragic 網址"); return; }
+            
+            let apiUrl = "";
+            try {
+                const urlObj = new URL(rawUrl);
+                const pathParts = urlObj.pathname.split('/').filter(p => p); 
+                
+                // 智慧路徑轉換：確保獲取純資料 JSON
+                if (pathParts.length >= 4) {
+                    // 針對 .../forms2/1/20362 格式
+                    const nodeId = pathParts[3];
+                    const basePath = `/${pathParts[0]}/${pathParts[1]}/${pathParts[2]}`;
+                    apiUrl = `https://ap8.ragic.com${basePath}.json?where=1000123,eq,${nodeId}&v=3`;
+                } else {
+                    // 針對一般列表網址
+                    let apiPath = urlObj.pathname;
+                    if (!apiPath.endsWith('.json')) apiPath += '.json';
+                    apiUrl = `https://ap8.ragic.com${apiPath}?v=3`;
                 }
-                Object.values(obj).forEach(v => { if (v && typeof v === 'object') deepValueScan(v); });
-            };
-            deepValueScan(record);
-            if (salesDemoDate) document.getElementById("f_demo").value = salesDemoDate;
-            if (lastContactDate) document.getElementById("f_last").value = lastContactDate;
+            } catch (e) { showToast("❌ 網址解析失敗"); return; }
 
-            showToast("✅ 同步成功！");
-        } else {
-            throw new Error("找不到資料欄位，請檢查 API Key 權限");
-        }
-    } catch (e) {
-        console.error("Sync Error:", e);
-        showToast("❌ 失敗：" + e.message);
-    } finally {
-        syncBtn.disabled = false;
-    }
-}
+            const localRKey = decryptRKey(sessionStorage.getItem('ken_crm_ragic_key'), sessionStorage.getItem('ken_crm_token'));
+            if (!localRKey) { showToast("❌ 憑證失效，請重新登入"); return; }
+
+            syncBtn.disabled = true; 
+            showToast("⏳ 正在讀取 Ragic 遠端資料...");
+
+            try {
+                const res = await fetch(apiUrl, { 
+                    method: 'GET', 
+                    headers: { 'Authorization': 'Basic ' + btoa(localRKey + ':'), 'Accept': 'application/json' }, 
+                    mode: 'cors' 
+                });
+                
+                if (!res.ok) throw new Error(`連線失敗 (${res.status})`);
+                const data = await res.json();
+                
+                let record = null;
+                // 強化版掃描器：支援陣列、嵌套物件與 Key 匹配
+                const scan = (obj) => {
+                    if (!obj || record) return;
+                    if (Array.isArray(obj)) {
+                        obj.forEach(item => scan(item));
+                    } else if (typeof obj === 'object') {
+                        const keys = Object.keys(obj);
+                        // 只要物件包含任何一個核心欄位 ID 或名稱，即判定為目標資料區塊
+                        const targets = ["1000197", "1000001", "1000008", "聯絡人", "姓名", "公司名稱", "預設 EMAIL", "聯絡人窗口"];
+                        if (keys.some(k => targets.includes(k))) { 
+                            record = obj; 
+                            return; 
+                        }
+                        Object.values(obj).forEach(v => { if (v && typeof v === 'object') scan(v); });
+                    }
+                };
+                scan(data);
+
+                if (record) {
+                    // 1. 基礎欄位填入 (優先搜尋 CONFIG.FIELD_MAP)
+                    const fillField = (targetId, mapKeys) => {
+                        const foundKey = mapKeys.find(k => record[k] !== undefined && record[k] !== "");
+                        if (foundKey) document.getElementById(targetId).value = record[foundKey];
+                    };
+
+                    fillField("f_name", CONFIG.FIELD_MAP.name);
+                    fillField("f_company", CONFIG.FIELD_MAP.company);
+                    fillField("f_email", CONFIG.FIELD_MAP.email);
+                    
+                    // 2. 深度掃描日期與紀錄
+                    let demoD = "", lastD = "";
+                    const dateScan = (obj) => {
+                        if (!obj || typeof obj !== 'object') return;
+                        for (let k of Object.keys(obj)) {
+                            const type = (CONFIG.FIELD_MAP.logType.map(f => obj[f]).filter(v => v).join(" ")).toUpperCase();
+                            const user = (CONFIG.FIELD_MAP.salesUser.map(f => obj[f]).filter(v => v).join(" ")).toLowerCase();
+                            const raw = CONFIG.FIELD_MAP.logDate.map(f => obj[f]).find(v => v);
+                            const dv = parseDate(raw);
+                            if (dv) {
+                                if (type.includes("DEMO") && user.includes("ken")) {
+                                    if(!demoD || new Date(dv) < new Date(demoD)) demoD = dv;
+                                }
+                                if (["追蹤", "教育訓練", "拜訪", "建立", "FOLLOW"].some(t => type.includes(t))) {
+                                    if(!lastD || new Date(dv) > new Date(lastD)) lastD = dv;
+                                }
+                            }
+                        }
+                        Object.values(obj).forEach(v => { if (v && typeof v === 'object') dateScan(v); });
+                    };
+                    dateScan(record);
+                    if(demoD) document.getElementById("f_demo").value = demoD;
+                    if(lastD) document.getElementById("f_last").value = lastD;
+
+                    showToast("✅ Ragic 同步完成");
+                } else {
+                    throw new Error("無法定位資料區塊，請確認該 ID 存在且權限正確");
+                }
+            } catch (e) { 
+                console.error("Sync Error:", e);
+                showToast("❌ 同步失敗：" + e.message); 
+            } finally { 
+                syncBtn.disabled = false; 
+            }
+        }
 
         async function checkTodayTasksAndNotify() {
             if (!("Notification" in window)) return;
@@ -749,7 +737,7 @@
             const today = new Date(); today.setHours(0,0,0,0);
             const todayStr = today.toISOString().split('T')[0];
             const sortF = document.getElementById("sortField").value;
-           const sortO = document.getElementById("sortOrder").value;
+            const sortO = document.getElementById("sortOrder").value;
             const currentEditId = document.getElementById("f_id").value;
             
             if (!isAppend) container.textContent = "";
@@ -842,6 +830,7 @@
                 updateSearchCache();
                 render();
                 syncToCloud(true);
+                checkTodayTasksAndNotify();
                 checkBackupStatus();
             } catch (e) {
                 console.error("Save Error:", e);
@@ -1081,6 +1070,105 @@
                 if (task) openActionModal(task.id);
             }, 1500);
         })();
+
+        async function handleUrlSync() {
+            const syncBtn = document.getElementById("syncBtn");
+            let rawUrl = document.getElementById("f_ragic_url").value.trim();
+            if (!rawUrl || !rawUrl.includes("ragic.com")) { showToast("⚠️ 請輸入有效的 Ragic 網址"); return; }
+            
+            let apiUrl = "";
+            try {
+                const urlObj = new URL(rawUrl);
+                const pathParts = urlObj.pathname.split('/').filter(p => p); 
+                
+                if (pathParts.length >= 4) {
+                    const nodeId = pathParts[3];
+                    const basePath = `/${pathParts[0]}/${pathParts[1]}/${pathParts[2]}`;
+                    apiUrl = `https://ap8.ragic.com${basePath}.json?where=1000123,eq,${nodeId}&v=3`;
+                } else {
+                    let apiPath = urlObj.pathname;
+                    if (!apiPath.endsWith('.json')) apiPath += '.json';
+                    apiUrl = `https://ap8.ragic.com${apiPath}?v=3`;
+                }
+            } catch (e) { showToast("❌ 網址解析失敗"); return; }
+
+            const localRKey = decryptRKey(sessionStorage.getItem('ken_crm_ragic_key'), sessionStorage.getItem('ken_crm_token'));
+            if (!localRKey) { showToast("❌ 憑證失效，請重新登入"); return; }
+
+            syncBtn.disabled = true; 
+            showToast("⏳ 正在讀取 Ragic 遠端資料...");
+
+            try {
+                const res = await fetch(apiUrl, { 
+                    method: 'GET', 
+                    headers: { 'Authorization': 'Basic ' + btoa(localRKey + ':'), 'Accept': 'application/json' }, 
+                    mode: 'cors' 
+                });
+                
+                if (!res.ok) throw new Error(`連線失敗 (${res.status})`);
+                const data = await res.json();
+                
+                let record = null;
+                const scan = (obj) => {
+                    if (!obj || record) return;
+                    if (Array.isArray(obj)) {
+                        obj.forEach(item => scan(item));
+                    } else if (typeof obj === 'object') {
+                        const keys = Object.keys(obj);
+                        const targets = ["1000197", "1000001", "1000008", "聯絡人", "姓名", "公司名稱", "預設 EMAIL", "聯絡人窗口"];
+                        if (keys.some(k => targets.includes(k))) { 
+                            record = obj; 
+                            return; 
+                        }
+                        Object.values(obj).forEach(v => { if (v && typeof v === 'object') scan(v); });
+                    }
+                };
+                scan(data);
+
+                if (record) {
+                    const fillField = (targetId, mapKeys) => {
+                        const foundKey = mapKeys.find(k => record[k] !== undefined && record[k] !== "");
+                        if (foundKey) document.getElementById(targetId).value = record[foundKey];
+                    };
+
+                    fillField("f_name", CONFIG.FIELD_MAP.name);
+                    fillField("f_company", CONFIG.FIELD_MAP.company);
+                    fillField("f_email", CONFIG.FIELD_MAP.email);
+                    
+                    let demoD = "", lastD = "";
+                    const dateScan = (obj) => {
+                        if (!obj || typeof obj !== 'object') return;
+                        for (let k of Object.keys(obj)) {
+                            const type = (CONFIG.FIELD_MAP.logType.map(f => obj[f]).filter(v => v).join(" ")).toUpperCase();
+                            const user = (CONFIG.FIELD_MAP.salesUser.map(f => obj[f]).filter(v => v).join(" ")).toLowerCase();
+                            const raw = CONFIG.FIELD_MAP.logDate.map(f => obj[f]).find(v => v);
+                            const dv = parseDate(raw);
+                            if (dv) {
+                                if (type.includes("DEMO") && user.includes("ken")) {
+                                    if(!demoD || new Date(dv) < new Date(demoD)) demoD = dv;
+                                }
+                                if (["追蹤", "教育訓練", "拜訪", "建立", "FOLLOW"].some(t => type.includes(t))) {
+                                    if(!lastD || new Date(dv) > new Date(lastD)) lastD = dv;
+                                }
+                            }
+                        }
+                        Object.values(obj).forEach(v => { if (v && typeof v === 'object') dateScan(v); });
+                    };
+                    dateScan(record);
+                    if(demoD) document.getElementById("f_demo").value = demoD;
+                    if(lastD) document.getElementById("f_last").value = lastD;
+
+                    showToast("✅ Ragic 同步完成");
+                } else {
+                    throw new Error("無法定位資料區塊，請確認該 ID 存在且權限正確");
+                }
+            } catch (e) { 
+                console.error("Sync Error:", e);
+                showToast("❌ 同步失敗：" + e.message); 
+            } finally { 
+                syncBtn.disabled = false; 
+            }
+        }
     </script>
 </body>
 </html>
