@@ -230,7 +230,7 @@
         <div class="modal-bg"></div>
         <div class="modal-body" style="width: 380px;">
             <h3 style="text-align: center; color: var(--accent);">🚀 Ken CRM 智慧銷售管家</h3>
-            <p style="font-size: 0.8em; color: #666; text-align: center; margin-bottom: 20px;">請輸入使用者代號與密碼開始使用</p>
+            <p style="font-size: 0.8em; color: #666; text-align: center; margin-bottom: 20px;">請輸入使用者代號與自訂密碼開始使用</p>
             
             <label>使用者代號 (User ID)</label>
             <input type="text" id="login_uid" placeholder="例如: ken888">
@@ -279,7 +279,7 @@
         /* --- 核心認主與中央控管優化邏輯 --- */
         const urlParams = new URLSearchParams(window.location.search);
         
-        // 敏感資訊改存於 sessionStorage 以提高安全性
+        // 優化設定：讀取身分資訊 (敏感資訊改存於 sessionStorage 以提高安全性)
         let storedUserId = localStorage.getItem('ken_crm_userid');
         let myFolderId = sessionStorage.getItem('ken_crm_fid');
         let myToken = sessionStorage.getItem('ken_crm_token');
@@ -371,7 +371,7 @@
             }
         };
 
-        /* --- 優化區塊：密碼登入與註冊模式切換 --- */
+        /* --- 登入驗證模組 --- */
         function toggleRegMode() {
             const regFields = document.getElementById("reg_fields");
             regFields.hidden = !regFields.hidden;
@@ -384,20 +384,17 @@
             const errorEl = document.getElementById("login_error");
 
             if (!uid || !pass) { errorEl.textContent = "⚠️ 請填寫 ID 與密碼"; return; }
-            if (!document.getElementById("reg_fields").hidden && !rkey) { errorEl.textContent = "⚠️ 註冊模式需填寫 Ragic Key"; return; }
+            if (!document.getElementById("reg_fields").hidden && !rkey) { errorEl.textContent = "⚠️ 註冊需填寫 Ragic Key"; return; }
 
             errorEl.textContent = "⏳ 正在通訊中...";
             try {
-                const payload = {
-                    action: action === 'login' ? 'login' : 'register',
-                    userId: uid,
-                    password: pass,
-                    ragicKey: rkey
+                const payload = { 
+                    action: action === 'login' ? 'login' : 'register', 
+                    userId: uid, 
+                    password: pass, 
+                    ragicKey: rkey 
                 };
-                const resp = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
-                    method: 'POST',
-                    body: JSON.stringify(payload)
-                });
+                const resp = await fetch(CONFIG.GOOGLE_SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
                 const result = await resp.json();
 
                 if (result.error) {
@@ -410,9 +407,7 @@
                     showToast("✅ 驗證成功");
                     setTimeout(() => location.reload(), 500); 
                 }
-            } catch (e) {
-                errorEl.textContent = "❌ 無法連接伺服器";
-            }
+            } catch (e) { errorEl.textContent = "❌ 伺服器無回應"; }
         }
 
         async function loadInitialData() {
@@ -467,8 +462,6 @@
             checkTodayTasksAndNotify();
         }
 
-        /* --- 以下 100% 保留原本功能函式，不刪減任何原始標籤渲染與邏輯 --- */
-
         function insertTimestamp() {
             const noteArea = document.getElementById("f_note");
             const now = new Date();
@@ -510,7 +503,6 @@
                 if(pathParts.length < 2) throw new Error("網址格式不符");
                 const apiUrl = `${CONFIG.RAGIC_BASE_URL}${pathParts[1].split('?')[0]}/${recordId}?v=3`;
                 
-                // 使用登入後存於 sessionStorage 的 Ragic Key
                 const authHeader = 'Basic ' + btoa(CONFIG.RAGIC_KEY + ':');
                 const res = await fetch(apiUrl, {
                     method: 'GET',
@@ -574,7 +566,7 @@
             if (!("Notification" in window)) { alert("此瀏覽器不支援桌面通知"); return; }
             const permission = await Notification.requestPermission();
             if (permission === "granted") {
-                new Notification("Ken CRM 系統測試", { body: "通知功能已開啟！當再聯繫日到期時，系統將發送通知。", icon: 'https://cdn-icons-png.flaticon.com/512/1067/1067357.png' });
+                new Notification("Ken CRM 系統測試", { body: "通知功能已開啟！", icon: 'https://cdn-icons-png.flaticon.com/512/1067/1067357.png' });
                 showToast("✅ 通知功能已授權");
                 checkTodayTasksAndNotify();
             } else {
@@ -752,6 +744,7 @@
                 const stayDays = c.create_date ? Math.floor((new Date() - new Date(c.create_date))/(1000*60*60*24)) : 0;
                 const gCalLink = getGoogleCalendarLink(c);
                 const gmailLink = c.email ? `https://mail.google.com/mail/?view=cm&fs=1&to=${c.email}` : '#';
+                
                 const div = document.createElement("div");
                 div.className = `contact-card ${statusClass} ${c.id === currentEditId ? "editing" : ""}`;
                 div.id = `card-${c.id}`;
