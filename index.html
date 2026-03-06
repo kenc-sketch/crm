@@ -20,6 +20,7 @@
         .main-container { display: grid; grid-template-columns: 380px 1fr; gap: 0; flex: 1; overflow: hidden; }
         @media (max-width: 900px) { .main-container { grid-template-columns: 1fr; overflow-y: auto; } }
 
+        /* Sidebar */
         .sidebar { background: white; border-right: 1px solid var(--border); padding: 20px; overflow-y: auto; }
         h2 { font-size: 1.1em; color: var(--accent); margin-top: 0; border-left: 5px solid var(--accent); padding-left: 10px; margin-bottom: 20px; }
         label { display: block; margin: 12px 0 4px; font-weight: 700; font-size: 0.85em; color: #57606F; }
@@ -530,6 +531,7 @@
             try {
                 const urlObj = new URL(url);
                 let apiPath = urlObj.pathname;
+                // 強制加上 .json 後綴以確保 API 正確回傳
                 if (!apiPath.endsWith('.json')) apiPath += '.json';
                 
                 const apiUrl = `${CONFIG.RAGIC_BASE_URL}${apiPath}?v=3`;
@@ -544,22 +546,26 @@
 
                 const data = await res.json();
                 
-                // --- 智慧深度遍歷引擎 ---
+                // --- 全方位物件掃描引擎 ---
                 let record = null;
-                const searchData = (obj) => {
+                const findRecord = (obj) => {
                     if (!obj || record) return;
                     if (typeof obj === 'object') {
-                        // 檢查物件屬性，尋找包含中文字稱呼或關鍵編號的區塊
+                        // 特徵檢查：尋找包含 Ragic 編碼中關鍵欄位 ID 的物件區塊
                         const keys = Object.keys(obj);
-                        if (keys.some(k => ["1000001", "1000197", "公司名稱", "聯絡人", "預設聯絡人"].includes(k))) {
+                        if (keys.includes("1000001") || keys.includes("1000197") || keys.includes("公司名稱") || keys.includes("聯絡人")) {
                             record = obj; return;
                         }
-                        Object.values(obj).forEach(val => searchData(val));
+                        // 如果沒找到，繼續往深層尋找
+                        for (let val of Object.values(obj)) {
+                            if (val && typeof val === 'object') findRecord(val);
+                        }
                     }
                 };
-                searchData(data);
+                findRecord(data);
 
                 if (record) {
+                    // 資料帶入
                     CONFIG.FIELD_MAP.name.some(k => record[k] ? (document.getElementById("f_name").value = record[k], true) : false);
                     CONFIG.FIELD_MAP.company.some(k => record[k] ? (document.getElementById("f_company").value = record[k], true) : false);
                     
@@ -596,8 +602,8 @@
                     throw new Error("無法在回傳內容中定位資料欄位");
                 }
             } catch (e) {
-                console.error("Ragic Sync Error:", e);
-                showToast("❌ " + e.message);
+                console.error("Sync Error Detail:", e);
+                showToast("❌ 同步失敗：" + e.message);
             } finally {
                 syncBtn.disabled = false;
             }
