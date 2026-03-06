@@ -276,19 +276,22 @@
 
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <script>
-        /* --- 核心認主與中央控管優化邏輯 (旗艦安全版) --- */
+        /* --- 核心認主與中央控管優化邏輯 (旗艦版) --- */
         const urlParams = new URLSearchParams(window.location.search);
         
-        // 安全優化：敏感資訊全數改為 sessionStorage，UserId 保留於 localStorage 以利預填
+        // 安全優化：敏感憑證全數改為 sessionStorage，UserId 保留於 localStorage 以利預填
         let storedUserId = localStorage.getItem('ken_crm_userid');
         let myFolderId = sessionStorage.getItem('ken_crm_fid');
         let myToken = sessionStorage.getItem('ken_crm_token');
         let myRKeyEncrypted = sessionStorage.getItem('ken_crm_ragic_key');
 
-        // 基於 Token 的安全解鎖工具 (對應 GAS encryptWithToken)
+        // 基於 Token 的安全解鎖工具 (對應 GAS 4.0 加密)
         function decryptRKey(encrypted, token) {
             if(!encrypted || !token) return "";
-            try { return atob(encrypted).split('|')[0]; } catch(e) { return ""; }
+            try { 
+                const combined = atob(encrypted); 
+                return combined.split('|')[0]; 
+            } catch(e) { return ""; }
         }
 
         const CONFIG = {
@@ -299,7 +302,7 @@
             TRASH_KEY: "ken_crm_trash",
             BACKUP_TS_KEY: "ken_crm_last_backup",
             EX_BACKUP_TS_KEY: "ken_crm_last_excel_backup",
-            // 自動還原 Ragic Key
+            // 動態解密 Ragic Key 以供通訊使用
             RAGIC_KEY: decryptRKey(myRKeyEncrypted, myToken), 
             RAGIC_BASE_URL: "https://ap8.ragic.com/matthmen",
             GOOGLE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxm4MQEBD1wiyj-BofQ1jhfIQ7b0kY5v7ZvYoCdhO3S0nKH4AeK9ieVyXvfjoQuzRSU/exec',
@@ -469,7 +472,7 @@
             checkTodayTasksAndNotify();
         }
 
-        /* --- 原始邏輯復原區 (100% 同步，無刪減) --- */
+        /* --- 原始功能復原區 (無刪減) --- */
         function insertTimestamp() {
             const noteArea = document.getElementById("f_note");
             const now = new Date();
@@ -826,7 +829,7 @@
             const id = document.getElementById("f_id").value || "K-" + Date.now();
             const createDate = document.getElementById("f_create_date").value || new Date().toISOString();
             const newData = {
-                id, create_date: createDate, 
+                id, create_date: createDate, 
                 update_ts: Date.now(),
                 name: nameVal,
                 company: companyVal,
@@ -839,8 +842,8 @@
                 next: document.getElementById("f_next").value
             };
 
-            const dupIdx = contacts.findIndex(c => 
-                c.id !== id && 
+            const dupIdx = contacts.findIndex(c => 
+                c.id !== id && 
                 ((c.name === newData.name && c.company === newData.company) || (newData.email && c.email === newData.email))
             );
 
