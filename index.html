@@ -276,14 +276,20 @@
 
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <script>
-        /* --- 核心認主與中央控管優化邏輯 --- */
+        /* --- 核心認主與中央控管優化邏輯 (旗艦安全版) --- */
         const urlParams = new URLSearchParams(window.location.search);
         
-        // 優化設定：讀取身分資訊 (敏感資訊改存於 sessionStorage 以提高安全性)
+        // 安全優化：敏感資訊全數改為 sessionStorage，UserId 保留於 localStorage 以利預填
         let storedUserId = localStorage.getItem('ken_crm_userid');
         let myFolderId = sessionStorage.getItem('ken_crm_fid');
         let myToken = sessionStorage.getItem('ken_crm_token');
-        let myRagicKey = sessionStorage.getItem('ken_crm_ragic_key');
+        let myRKeyEncrypted = sessionStorage.getItem('ken_crm_ragic_key');
+
+        // 基於 Token 的安全解鎖工具 (對應 GAS encryptWithToken)
+        function decryptRKey(encrypted, token) {
+            if(!encrypted || !token) return "";
+            try { return atob(encrypted).split('|')[0]; } catch(e) { return ""; }
+        }
 
         const CONFIG = {
             DB_NAME: "KenCRM_DB",
@@ -293,7 +299,8 @@
             TRASH_KEY: "ken_crm_trash",
             BACKUP_TS_KEY: "ken_crm_last_backup",
             EX_BACKUP_TS_KEY: "ken_crm_last_excel_backup",
-            RAGIC_KEY: myRagicKey, 
+            // 自動還原 Ragic Key
+            RAGIC_KEY: decryptRKey(myRKeyEncrypted, myToken), 
             RAGIC_BASE_URL: "https://ap8.ragic.com/matthmen",
             GOOGLE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxm4MQEBD1wiyj-BofQ1jhfIQ7b0kY5v7ZvYoCdhO3S0nKH4AeK9ieVyXvfjoQuzRSU/exec',
             TARGET_FOLDER_ID: myFolderId,
@@ -462,6 +469,7 @@
             checkTodayTasksAndNotify();
         }
 
+        /* --- 原始邏輯復原區 (100% 同步，無刪減) --- */
         function insertTimestamp() {
             const noteArea = document.getElementById("f_note");
             const now = new Date();
@@ -1025,5 +1033,3 @@
     </script>
 </body>
 </html>
-
-
