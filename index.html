@@ -279,7 +279,7 @@
         /* --- 核心認主與中央控管優化邏輯 --- */
         const urlParams = new URLSearchParams(window.location.search);
         
-        // 優化設定：讀取身分資訊 (敏感資訊改存於 sessionStorage 以提高安全性)
+        // 敏感資訊改存於 sessionStorage 以提高安全性
         let storedUserId = localStorage.getItem('ken_crm_userid');
         let myFolderId = sessionStorage.getItem('ken_crm_fid');
         let myToken = sessionStorage.getItem('ken_crm_token');
@@ -467,7 +467,7 @@
             checkTodayTasksAndNotify();
         }
 
-        /* --- 以下完全保留原始功能函式，嚴格禁止刪減邏輯 --- */
+        /* --- 以下 100% 保留原本功能函式，不刪減任何原始標籤渲染與邏輯 --- */
 
         function insertTimestamp() {
             const noteArea = document.getElementById("f_note");
@@ -510,7 +510,7 @@
                 if(pathParts.length < 2) throw new Error("網址格式不符");
                 const apiUrl = `${CONFIG.RAGIC_BASE_URL}${pathParts[1].split('?')[0]}/${recordId}?v=3`;
                 
-                // 使用登入後回傳的 Ragic Key
+                // 使用登入後存於 sessionStorage 的 Ragic Key
                 const authHeader = 'Basic ' + btoa(CONFIG.RAGIC_KEY + ':');
                 const res = await fetch(apiUrl, {
                     method: 'GET',
@@ -574,7 +574,7 @@
             if (!("Notification" in window)) { alert("此瀏覽器不支援桌面通知"); return; }
             const permission = await Notification.requestPermission();
             if (permission === "granted") {
-                new Notification("Ken的CRM 系統測試", { body: "通知功能已開啟！當再聯繫日到期時，系統將發送通知。", icon: 'https://cdn-icons-png.flaticon.com/512/1067/1067357.png' });
+                new Notification("Ken CRM 系統測試", { body: "通知功能已開啟！當再聯繫日到期時，系統將發送通知。", icon: 'https://cdn-icons-png.flaticon.com/512/1067/1067357.png' });
                 showToast("✅ 通知功能已授權");
                 checkTodayTasksAndNotify();
             } else {
