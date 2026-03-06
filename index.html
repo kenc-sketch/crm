@@ -314,7 +314,7 @@
             TRASH_KEY: "ken_crm_trash",
             BACKUP_TS_KEY: "ken_crm_last_backup",
             EX_BACKUP_TS_KEY: "ken_crm_last_excel_backup",
-            RAGIC_BASE_URL: "https://ap8.ragic.com/matthmen",
+            RAGIC_BASE_URL: "https://ap8.ragic.com",
             GOOGLE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxm4MQEBD1wiyj-BofQ1jhfIQ7b0kY5v7ZvYoCdhO3S0nKH4AeK9ieVyXvfjoQuzRSU/exec',
             TARGET_FOLDER_ID: myFolderId,
             AUTH_TOKEN: myToken,
@@ -552,7 +552,7 @@
                 const recordId = pathSegments[pathSegments.length - 1]; 
                 const apiPath = urlObj.pathname; 
                 
-                const apiUrl = `https://ap8.ragic.com${apiPath}?v=3`;
+                const apiUrl = `${CONFIG.RAGIC_BASE_URL}${apiPath}?v=3`;
                 const authHeader = 'Basic ' + btoa(localRKey + ':');
 
                 const res = await fetch(apiUrl, {
@@ -570,7 +570,6 @@
                 } else if (Array.isArray(data)) {
                     record = data[0];
                 } else if (Object.keys(data).length > 0) {
-                    // 自動遍歷所有標籤，尋找第一筆包含資料的物件
                     for (let key in data) {
                         if (data[key] && typeof data[key] === 'object' && !Array.isArray(data[key])) {
                             record = data[key];
