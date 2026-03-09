@@ -246,7 +246,7 @@
             DB_NAME: "KenCRM_DB", DB_VERSION: 1, STORE_NAME: "contacts",
             GOOGLE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwlqyN0ruLWo4VlE1b_6iuImsnycKDbSkTw5G2lcTkiP6cYBaZ1xzqoB3uBH7KhnkXL/exec',
             PAGE_SIZE: 30, AUTO_SYNC_INTERVAL: 10 * 60 * 1000,
-            DB_KEY: "ken_crm_v4", EX_BACKUP_TS_KEY: "ken_crm_last_excel_backup"
+            DB_KEY: "ken_crm_v4", TRASH_KEY: "ken_crm_trash", EX_BACKUP_TS_KEY: "ken_crm_last_excel_backup"
         };
 
         const UI = {
@@ -303,7 +303,7 @@
 
         function logout() { if(confirm("確定登出帳號？")){ localStorage.removeItem('ken_crm_token'); location.reload(); } }
 
-        // --- 核心 IndexedDB (保留本機加速緩存) ---
+        // --- 核心 IndexedDB ---
         const DB = {
             async init() {
                 return new Promise((resolve) => {
@@ -351,7 +351,6 @@
             updateSearchCache(); render(); checkTodayTasksAndNotify();
         }
 
-        // 優化版：帶有 ⏳ 動態視覺提示的 Ragic 同步
         async function handleUrlSync() {
             const url = document.getElementById("f_ragic_url").value.trim();
             const syncBtn = document.getElementById("syncBtn");
@@ -555,7 +554,37 @@
             window.scrollTo({top:0, behavior:'smooth'});
         }
 
-        // --- 完全還原原始的儲存、檢查重複與重置流程 ---
+        // --- 完整還原：刪除復原機制與 Toast ---
+        function showToast(m, isDelete = false) { 
+            const t = UI.toast(); 
+            t.innerHTML = isDelete ? `${m} <span onclick="restoreTrash()" style="text-decoration:underline; cursor:pointer; margin-left:10px;">復原</span>` : m;
+            t.hidden = false; 
+            setTimeout(()=>t.hidden=true, 4000); 
+        }
+
+        function deleteC(id) { 
+            if(confirm("確定刪除此聯絡人？")) { 
+                const target = contacts.find(c => c.id === id);
+                if (!target) return;
+                localStorage.setItem(CONFIG.TRASH_KEY, JSON.stringify(target));
+                contacts = contacts.filter(c=>c.id!==id); 
+                save(); 
+                showToast("已刪除聯絡人", true);
+            } 
+        }
+
+        function restoreTrash() {
+            const trashedStr = localStorage.getItem(CONFIG.TRASH_KEY);
+            if (trashedStr) {
+                const trashed = JSON.parse(trashedStr);
+                contacts.push(trashed);
+                localStorage.removeItem(CONFIG.TRASH_KEY);
+                save();
+                showToast("✅ 已還原聯絡人");
+            }
+        }
+
+        // --- 完整還原：儲存與 Excel 匯出/匯入機制 ---
         async function save() {
             await DB.saveAll(contacts);
             updateSearchCache(); 
@@ -577,9 +606,7 @@
             const newData = {
                 id, create_date: createDate, 
                 update_ts: Date.now(),
-                name: nameVal,
-                company: companyVal,
-                email: emailVal,
+                name: nameVal, company: companyVal, email: emailVal,
                 ragic_url: document.getElementById("f_ragic_url").value.trim(),
                 note: document.getElementById("f_note").value.trim(),
                 tag: document.getElementById("f_tag").value,
@@ -603,29 +630,17 @@
             save(); return true;
         }
 
-        // 恢復表單綁定方式
         UI.form().onsubmit = (e) => { 
             e.preventDefault(); 
-            if(processSubmit()){ 
-                resetForm(); 
-                showToast("資料已儲存並同步"); 
-                render(); 
-            } 
+            if(processSubmit()){ resetForm(); showToast("資料已儲存並同步"); } 
         };
 
         function handleNextEntry() { 
             if(document.getElementById("f_name").value.trim()) {
-                if(processSubmit()){ 
-                    resetForm(); 
-                    showToast("已儲存並準備下一筆"); 
-                    render();
-                }
-            } else {
-                resetForm();
-            }
+                if(processSubmit()){ resetForm(); showToast("已儲存並準備下一筆"); }
+            } else { resetForm(); }
         }
 
-        // 確保清空所有欄位與隱藏 ID
         function resetForm() { 
             UI.form().reset(); 
             document.getElementById("f_id").value=""; 
@@ -640,8 +655,6 @@
             document.getElementById("stat-total").textContent = contacts.length;
             document.getElementById("stat-due").textContent = contacts.filter(c => c.next && c.next <= new Date().toISOString().split('T')[0]).length;
         }
-        function showToast(m) { UI.toast().textContent = m; UI.toast().hidden = false; setTimeout(()=>UI.toast().hidden=true, 3000); }
-        function deleteC(id) { if(confirm("確定刪除此客戶紀錄？")) { contacts = contacts.filter(c=>c.id!==id); DB.saveAll(contacts); render(); syncToCloud(true); } }
         
         function copyShippingInfo(id) {
             const c = contacts.find(x => x.id === id);
@@ -672,24 +685,53 @@
             const permission = await Notification.requestPermission();
             if (permission === "granted") {
                 new Notification("Ken的CRM 系統測試", { body: "通知功能已開啟！當再聯繫日到期時，系統將發送通知。" });
-                showToast("✅ 通知功能已授權");
-                checkTodayTasksAndNotify();
-            } else {
-                showToast("❌ 通知權限已遭拒絕");
-            }
+                showToast("✅ 通知功能已授權"); checkTodayTasksAndNotify();
+            } else { showToast("❌ 通知權限已遭拒絕"); }
         }
 
         function checkBackupStatus() {
             const lastExBackup = parseInt(localStorage.getItem(CONFIG.EX_BACKUP_TS_KEY) || 0);
             if (Date.now() - lastExBackup > 86400000) {
-                UI.remind().innerHTML = "🚨 建議執行 Excel 匯出備份";
-                UI.remind().style.color = "#FF4757";
-                UI.remind().style.fontWeight = "bold";
+                UI.remind().innerHTML = "🚨 建議執行 Excel 匯出備份"; UI.remind().style.color = "#FF4757"; UI.remind().style.fontWeight = "bold";
             } else {
-                UI.remind().innerHTML = "✅ 資料安全性：高";
-                UI.remind().style.color = "#2ed573";
+                UI.remind().innerHTML = "✅ 資料安全性：高"; UI.remind().style.color = "#2ed573";
             }
         }
+
+        // --- 完整還原：Excel 匯入事件 ---
+        document.getElementById("fileInput").onchange = (e) => {
+            const file = e.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+                try {
+                    const wb = XLSX.read(new Uint8Array(evt.target.result), {type: 'array', cellDates: true});
+                    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                    rows.forEach(row => {
+                        const n = {
+                            id: "K-" + Math.random().toString(16).slice(2,10),
+                            create_date: new Date().toISOString(),
+                            update_ts: Date.now(),
+                            name: (row["聯絡人"] || "未知名").toString(),
+                            email: (row["mail"] || "").toString().trim(),
+                            company: (row["公司"] || "").toString().trim(),
+                            tag: row["分類"] || row["標籤"] || "A有希望",
+                            demo: parseDate(row["初次DEMO"]),
+                            last: parseDate(row["上次聯繫"]),
+                            next: parseDate(row["再訪時間"]),
+                            ragic_url: (row["ragic"] || "").toString(),
+                            note: (row["記事"] || "").toString()
+                        };
+                        const idx = contacts.findIndex(c => c.name === n.name && c.company === n.company);
+                        if (idx >= 0) Object.assign(contacts[idx], n); else contacts.push(n);
+                    });
+                    save(); showToast("✅ Excel 匯入成功並已推至雲端");
+                } catch(err) {
+                    showToast("❌ 檔案讀取失敗，請確認格式");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        };
 
         UI.search().oninput = () => { clearTimeout(searchTimer); searchTimer = setTimeout(resetPageAndRender, 200); };
         document.getElementById("tabContainer").onclick = (e) => { if(e.target.dataset.filter) { 
@@ -697,11 +739,17 @@
             e.target.classList.add("active"); currentFilter = e.target.dataset.filter; resetPageAndRender();
         }};
         
+        // --- 完整還原：Excel 匯出 (包含自訂中文標頭) ---
         document.getElementById("exportBtn").onclick = () => {
-            const ws = XLSX.utils.json_to_sheet(contacts);
+            const dataToExport = contacts.map(c => ({
+                "聯絡人": c.name, "公司": c.company, "mail": c.email, "分類": c.tag, 
+                "初次DEMO": c.demo, "上次聯繫": c.last, "再訪時間": c.next, 
+                "ragic": c.ragic_url, "記事": c.note
+            }));
+            const ws = XLSX.utils.json_to_sheet(dataToExport);
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "CRM_Backup");
-            XLSX.writeFile(wb, `CRM_${myUserId}_Backup.xlsx`);
+            XLSX.utils.book_append_sheet(wb, ws, "Ken_CRM");
+            XLSX.writeFile(wb, `CRM_${myUserId}_Backup_${new Date().getTime()}.xlsx`);
             localStorage.setItem(CONFIG.EX_BACKUP_TS_KEY, Date.now());
             checkBackupStatus();
         };
