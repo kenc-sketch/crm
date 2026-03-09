@@ -118,6 +118,7 @@
         </div>
         <div style="display: flex; gap: 10px;">
             <button class="btn btn-sync-cloud small" onclick="syncToCloud()">☁️ 雲端同步</button>
+            <button class="btn btn-sub small" onclick="updateRagicKey()">🔑 更換金鑰</button>
             <button class="btn btn-sub small" onclick="logout()">🔓 登出帳號</button>
             <button class="btn btn-sub small" onclick="document.getElementById('fileInput').click()">📥 匯入 Excel</button>
             <button class="btn btn-sub small" id="exportBtn">📤 匯出資料</button>
@@ -244,7 +245,7 @@
 
         const CONFIG = {
             DB_NAME: "KenCRM_DB", DB_VERSION: 1, STORE_NAME: "contacts",
-            GOOGLE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxm4MQEBD1wiyj-BofQ1jhfIQ7b0kY5v7ZvYoCdhO3S0nKH4AeK9ieVyXvfjoQuzRSU/exec',
+            GOOGLE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwlqyN0ruLWo4VlE1b_6iuImsnycKDbSkTw5G2lcTkiP6cYBaZ1xzqoB3uBH7KhnkXL/exec',
             PAGE_SIZE: 30, AUTO_SYNC_INTERVAL: 10 * 60 * 1000,
             DB_KEY: "ken_crm_v4", TRASH_KEY: "ken_crm_trash", EX_BACKUP_TS_KEY: "ken_crm_last_excel_backup"
         };
@@ -264,7 +265,7 @@
         let isSyncing = false; 
         let currentPage = 1;
         let currentFilter = "all";
-        let isDirty = false; // 新增：髒標記效能優化
+        let isDirty = false; // 髒標記效能優化
 
         // --- SaaS 身份動作 ---
         function toggleAuthMode() {
@@ -303,6 +304,33 @@
         }
 
         function logout() { if(confirm("確定登出帳號？")){ localStorage.removeItem('ken_crm_token'); location.reload(); } }
+
+        async function updateRagicKey() {
+            const newKey = prompt("請貼上您新的 Ragic API Key：\n(更換後立即生效)");
+            if (!newKey || newKey.trim() === "") return;
+
+            const btn = document.querySelector('button[onclick="updateRagicKey()"]');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = "⏳ 更新中...";
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({ action: 'updateKey', token: myToken, newKey: newKey.trim() })
+                });
+                const data = await res.json();
+                if (data.error) throw new Error(data.error);
+                
+                showToast("✅ Ragic API Key 已成功更新！");
+            } catch (e) {
+                alert("更新失敗，請檢查網路連線");
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
 
         // --- 核心 IndexedDB ---
         const DB = {
