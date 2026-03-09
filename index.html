@@ -264,6 +264,7 @@
         let isSyncing = false; 
         let currentPage = 1;
         let currentFilter = "all";
+        let isDirty = false; // 新增：髒標記效能優化
 
         // --- SaaS 身份動作 ---
         function toggleAuthMode() {
@@ -396,6 +397,9 @@
 
         async function syncToCloud(isAuto = false) {
             if (isSyncing || !myToken) return;
+            // 效能優化：如果為自動存檔且資料無更動，直接略過上傳
+            if (isAuto && !isDirty) return; 
+
             isSyncing = true;
             UI.syncStatus().textContent = isAuto ? "⏳ 自動儲存中..." : "☁️ 雲端同步中...";
             try {
@@ -405,11 +409,12 @@
                     body: JSON.stringify({ action: 'save', token: myToken, data: contacts })
                 });
                 UI.syncStatus().textContent = `(✅ 同步完成 ${new Date().toLocaleTimeString()})`;
+                isDirty = false; // 存檔成功後，將髒標記重置
             } catch (e) { UI.syncStatus().textContent = "(同步失敗)"; }
             finally { isSyncing = false; }
         }
 
-        // --- 原始 UI 與 日期邏輯 (完全保留) ---
+        // --- 原始 UI 與 日期邏輯 ---
         function parseDate(v) {
             if (!v) return "";
             if (v instanceof Date) return v.toISOString().split('T')[0];
@@ -457,6 +462,7 @@
             const dateStr = baseDate.toISOString().split('T')[0];
             contacts[idx].next = dateStr;
             contacts[idx].update_ts = Date.now();
+            isDirty = true; // 標記為需上傳
             save();
             showToast(`已延後 ${days} 天至 ${dateStr}`);
         }
@@ -568,6 +574,7 @@
                 if (!target) return;
                 localStorage.setItem(CONFIG.TRASH_KEY, JSON.stringify(target));
                 contacts = contacts.filter(c=>c.id!==id); 
+                isDirty = true; // 標記為需上傳
                 save(); 
                 showToast("已刪除聯絡人", true);
             } 
@@ -579,6 +586,7 @@
                 const trashed = JSON.parse(trashedStr);
                 contacts.push(trashed);
                 localStorage.removeItem(CONFIG.TRASH_KEY);
+                isDirty = true; // 標記為需上傳
                 save();
                 showToast("✅ 已還原聯絡人");
             }
@@ -627,6 +635,7 @@
                 const idx = contacts.findIndex(c => c.id === id);
                 if (idx >= 0) contacts[idx] = newData; else contacts.push(newData);
             }
+            isDirty = true; // 標記為需上傳
             save(); return true;
         }
 
@@ -725,6 +734,7 @@
                         const idx = contacts.findIndex(c => c.name === n.name && c.company === n.company);
                         if (idx >= 0) Object.assign(contacts[idx], n); else contacts.push(n);
                     });
+                    isDirty = true; // 標記為需上傳
                     save(); showToast("✅ Excel 匯入成功並已推至雲端");
                 } catch(err) {
                     showToast("❌ 檔案讀取失敗，請確認格式");
@@ -754,7 +764,12 @@
             checkBackupStatus();
         };
 
-        (async () => { if (myToken) loadInitialData(); checkBackupStatus(); setInterval(() => syncToCloud(true), CONFIG.AUTO_SYNC_INTERVAL); })();
+        (async () => { 
+            if (myToken) loadInitialData(); 
+            checkBackupStatus(); 
+            // 背景自動存檔每10分鐘觸發一次，內部會自動檢查 isDirty 標記
+            setInterval(() => syncToCloud(true), CONFIG.AUTO_SYNC_INTERVAL); 
+        })();
     </script>
 </body>
 </html>
