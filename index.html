@@ -12,20 +12,21 @@
         }
         body { margin: 0; font-family: 'Noto Sans TC', sans-serif; background: var(--bg); color: #2F3542; height: 100vh; display: flex; flex-direction: column; }
         
-        header { background: white; padding: 12px 25px; border-bottom: 3px solid var(--accent); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        header { background: white; padding: 12px 25px; border-bottom: 3px solid var(--accent); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05); flex-wrap: wrap; gap: 8px; }
         .logo { font-weight: 700; color: var(--accent); font-size: 1.3em; }
         .data-warning { font-size: 0.7em; color: #e67e22; margin-left: 10px; font-weight: normal; }
         #syncStatus { font-size: 0.6em; margin-left: 8px; font-weight: normal; vertical-align: middle; }
-
+ 
         .main-container { display: grid; grid-template-columns: 380px 1fr; gap: 0; flex: 1; overflow: hidden; }
         @media (max-width: 900px) { .main-container { grid-template-columns: 1fr; overflow-y: auto; } }
-
-        /* Sidebar & Elements */
+ 
         .sidebar { background: white; border-right: 1px solid var(--border); padding: 20px; overflow-y: auto; }
         h2 { font-size: 1.1em; color: var(--accent); margin-top: 0; border-left: 5px solid var(--accent); padding-left: 10px; margin-bottom: 20px; }
         label { display: block; margin: 12px 0 4px; font-weight: 700; font-size: 0.85em; color: #57606F; }
-        input, select, textarea { width: 100%; padding: 10px; margin-bottom: 12px; border-radius: 8px; border: 1.5px solid var(--border); box-sizing: border-box; font-size: 0.95em; }
-        input:focus { outline: none; border-color: var(--accent); }
+        input[type="text"], input[type="email"], input[type="url"], input[type="password"], select, textarea {
+            width: 100%; padding: 10px; margin-bottom: 12px; border-radius: 8px; border: 1.5px solid var(--border); box-sizing: border-box; font-size: 0.95em;
+        }
+        input:focus, textarea:focus, select:focus { outline: none; border-color: var(--accent); }
         
         .btn { padding: 12px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
         .btn-main { background: var(--accent); color: white; width: 100%; }
@@ -34,26 +35,28 @@
         .email-sync-row { display: flex; gap: 8px; margin-bottom: 0px; }
         .email-sync-row input { flex: 1; margin-bottom: 0px; }
         .btn-sync-ragic { background: #2C3E50; color: white; border: none; padding: 0 15px; border-radius: 8px; cursor: pointer; height: 42px; white-space: nowrap; font-size: 0.85em; font-weight: 700; transition: 0.2s; }
-
+ 
         .btn-sync-cloud { background: #2f3542; color: white; }
         .btn-ragic { background: var(--link-blue); color: white; padding: 4px 10px; font-size: 0.75em; text-decoration: none; border-radius: 5px; display: inline-flex; align-items: center; gap: 4px; margin-top: 5px; }
         .btn-calendar { background: var(--calendar-green); color: white; padding: 4px 10px; font-size: 0.75em; text-decoration: none; border-radius: 5px; display: inline-flex; align-items: center; gap: 4px; margin-top: 5px; margin-left: 5px;}
-
-        .btn-quick-date { background: #eee; color: #666; padding: 2px 6px; font-size: 10px; border-radius: 4px; border: 1px solid #ddd; cursor: pointer; margin-left: 5px; transition: 0.2s; }
+        .btn-refresh-ragic { background: #8e44ad; color: white; padding: 4px 10px; font-size: 0.75em; border: none; border-radius: 5px; display: inline-flex; align-items: center; gap: 4px; margin-top: 5px; margin-left: 5px; cursor: pointer; font-weight: 700; }
+ 
+        .btn-quick-date { background: #eee; color: #666; padding: 2px 6px; font-size: 10px; border-radius: 4px; border: 1px solid #ddd; cursor: pointer; margin-left: 3px; transition: 0.2s; }
         .btn-quick-date:hover { background: var(--accent); color: white; }
-
+ 
         .content { padding: 20px; overflow-y: auto; display: flex; flex-direction: column; }
-        .stats-bar { display: flex; gap: 10px; margin-bottom: 10px; font-size: 0.85em; }
+        .stats-bar { display: flex; gap: 10px; margin-bottom: 10px; font-size: 0.85em; flex-wrap: wrap; }
         .stat-item { background: white; padding: 5px 12px; border-radius: 8px; border: 1px solid var(--border); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .tabs-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 15px; background: white; padding: 10px; border-radius: 12px; border: 1px solid var(--border); }
         .tab-btn { padding: 5px 12px; border-radius: 20px; border: 1px solid #ddd; background: #fff; cursor: pointer; font-size: 0.8em; }
         .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
-
+ 
         .search-box { position: relative; display: flex; gap: 8px; margin-bottom: 10px; }
-        .btn-clear-search { position: absolute; right: 10px; top: 10px; border: none; background: none; cursor: pointer; color: #ccc; }
+        .search-box input { flex: 1; margin-bottom: 0; padding-right: 36px; }
+        .btn-clear-search { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); border: none; background: none; cursor: pointer; color: #aaa; font-size: 1em; }
         .sort-row { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; background: #eee; padding: 8px 15px; border-radius: 8px; font-size: 0.85em; }
         .sort-row select { margin-bottom: 0; padding: 4px; width: auto; font-size: 1em; }
-
+ 
         .contact-card {
             background: white; padding: 18px; border-radius: 12px; border-left: 8px solid #CCC;
             margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;
@@ -63,19 +66,55 @@
         .card-overdue { border-left-color: var(--status-overdue); background: #FFF5F5; }
         .card-overdue .date-warning-text { color: var(--status-overdue); font-weight: bold; animation: blink 1.5s infinite; }
         @keyframes blink { 50% { opacity: 0.5; } }
-
         .card-today { border-left-color: var(--status-today); }
         .card-soon { border-left-color: var(--status-soon); }
         .card-ok { border-left-color: var(--status-ok); }
         .stay-badge { font-size: 10px; background: #eee; padding: 2px 6px; border-radius: 4px; color: #888; margin-left: 5px; }
-
+ 
+        /* ===== 自訂日期選擇器 ===== */
+        .date-field-wrap { position: relative; margin-bottom: 12px; }
+        .date-field-wrap small { display: block; font-size: 0.82em; color: #888; margin-bottom: 4px; }
+        .date-field-wrap small.accent-label { color: var(--accent); font-weight: bold; }
+        .date-input-row { display: flex; gap: 6px; align-items: center; }
+        .date-display { flex: 1; padding: 9px 12px; border-radius: 8px; border: 1.5px solid var(--border); font-size: 0.92em; cursor: pointer; background: white; color: #2F3542; user-select: none; transition: border-color 0.2s; }
+        .date-display:hover { border-color: var(--accent); }
+        .date-display.has-date { color: #2F3542; }
+        .date-display.empty { color: #aaa; }
+        .date-clear-btn { background: none; border: none; cursor: pointer; color: #ccc; padding: 4px; border-radius: 4px; font-size: 1em; transition: color 0.2s; }
+        .date-clear-btn:hover { color: var(--status-overdue); }
+ 
+        /* 日曆彈窗 */
+        .cal-popup { position: fixed; z-index: 5000; background: white; border-radius: 14px; box-shadow: 0 10px 40px rgba(0,0,0,0.18); padding: 16px; width: 280px; border: 1px solid var(--border); }
+        .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .cal-nav { background: none; border: none; cursor: pointer; padding: 4px 10px; border-radius: 6px; font-size: 1.1em; color: var(--primary); transition: background 0.15s; }
+        .cal-nav:hover { background: var(--bg); }
+        .cal-month-label { font-weight: 700; font-size: 0.95em; color: var(--primary); cursor: pointer; padding: 4px 8px; border-radius: 6px; }
+        .cal-month-label:hover { background: var(--bg); }
+        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+        .cal-dow { text-align: center; font-size: 0.72em; font-weight: 700; color: #aaa; padding: 4px 0; }
+        .cal-day { text-align: center; font-size: 0.88em; padding: 6px 2px; border-radius: 6px; cursor: pointer; transition: background 0.15s; }
+        .cal-day:hover { background: #F1F2F6; }
+        .cal-day.today { background: #FFF3CD; font-weight: 700; }
+        .cal-day.selected { background: var(--accent); color: white; font-weight: 700; }
+        .cal-day.other-month { color: #ccc; }
+        .cal-day.empty { cursor: default; }
+        .cal-day.empty:hover { background: none; }
+        .cal-quick { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+        .cal-quick-btn { flex: 1; min-width: 60px; padding: 5px 4px; font-size: 0.75em; background: #f1f2f6; border: none; border-radius: 6px; cursor: pointer; font-weight: 700; color: #57606F; transition: background 0.15s; }
+        .cal-quick-btn:hover { background: var(--accent); color: white; }
+        .cal-overlay { position: fixed; inset: 0; z-index: 4999; }
+ 
+        /* 日期衝突警告 */
+        .date-conflict-warn { font-size: 0.75em; color: var(--status-overdue); margin-top: -8px; margin-bottom: 8px; display: none; }
+        .date-conflict-warn.show { display: block; }
+ 
         .modal { position: fixed; inset: 0; z-index: 2000; display: flex; justify-content: center; align-items: center; padding: 20px; }
         .modal[hidden] { display: none; }
         .modal-bg { position: absolute; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); }
         .modal-body { position: relative; background: white; padding: 30px; border-radius: 20px; width: 450px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
-
-        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #2F3542; color: white; padding: 12px 30px; border-radius: 50px; z-index: 3000; font-size: 0.9em; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
-
+ 
+        .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); background: #2F3542; color: white; padding: 12px 30px; border-radius: 50px; z-index: 6000; font-size: 0.9em; box-shadow: 0 5px 15px rgba(0,0,0,0.3); white-space: nowrap; }
+ 
         .notification-bell {
             position: fixed; right: 25px; bottom: 25px; width: 50px; height: 50px;
             background: var(--accent); color: white; border-radius: 50%;
@@ -83,10 +122,14 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.2); z-index: 2500; font-size: 20px; transition: transform 0.2s;
         }
         .load-more-btn { width: 100%; padding: 15px; background: #fff; border: 1px dashed var(--border); border-radius: 12px; color: var(--accent); cursor: pointer; font-weight: 700; margin-bottom: 30px; }
-
-        /* SaaS Auth UI Overlay */
+ 
         #authOverlay { position: fixed; inset: 0; background: rgba(248,249,250,0.98); z-index: 9999; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
         .auth-card { width: 380px; padding: 40px; background: white; border-radius: 20px; box-shadow: 0 15px 50px rgba(0,0,0,0.1); border-top: 6px solid var(--accent); }
+ 
+        /* 正在編輯的 Ragic URL 欄位提示 */
+        .ragic-status-hint { font-size: 0.75em; margin-top: 4px; margin-bottom: 8px; color: #888; min-height: 1.2em; }
+        .ragic-status-hint.synced { color: var(--status-ok); }
+        .ragic-status-hint.dirty { color: var(--status-overdue); }
     </style>
 </head>
 <body>
@@ -109,14 +152,14 @@
             </div>
         </div>
     </div>
-
+ 
     <header>
         <div class="logo">
             Ken的CRM
             <span class="data-warning" id="backupRemind">⚠️ 認證模式</span>
             <span id="syncStatus" style="color: #95a5a6;">(雲端同步：待機)</span>
         </div>
-        <div style="display: flex; gap: 10px;">
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
             <button class="btn btn-sync-cloud small" onclick="syncToCloud()">☁️ 雲端同步</button>
             <button class="btn btn-sub small" onclick="updateRagicKey()">🔑 更換金鑰</button>
             <button class="btn btn-sub small" onclick="logout()">🔓 登出帳號</button>
@@ -125,7 +168,7 @@
             <input type="file" id="fileInput" accept=".xlsx, .xls" style="display:none">
         </div>
     </header>
-
+ 
     <div class="main-container">
         <div class="sidebar">
             <h2>聯絡人維護</h2>
@@ -133,12 +176,14 @@
                 <input type="hidden" id="f_id">
                 <input type="hidden" id="f_create_date">
                 <input type="hidden" id="f_update_ts">
-
+ 
                 <label>Ragic 專屬連結</label>
                 <div class="email-sync-row">
                     <input type="url" id="f_ragic_url" placeholder="貼上 Ragic 網址...">
                     <button type="button" id="syncBtn" class="btn-sync-ragic" onclick="handleUrlSync()">🔗 同步網址</button>
                 </div>
+                <!-- FIX #1: Ragic 狀態提示 + 刷新按鈕 -->
+                <div id="ragicStatusHint" class="ragic-status-hint"></div>
                 
                 <label>Email</label>
                 <input type="email" id="f_email" placeholder="輸入 Email...">
@@ -158,12 +203,36 @@
                     <option value="E暫無需求">E暫無需求</option>
                     <option value="Z電聯寄件">Z電聯寄件</option>
                 </select>
-
+ 
+                <!-- FIX #5: 自訂日曆元件取代原生 input[type=date] -->
                 <label>日期管理</label>
-                <div style="margin-bottom: 10px;"><small style="color: var(--accent); font-weight: bold;">初次 DEMO 日期</small><input type="date" id="f_demo"></div>
-                <div style="margin-bottom: 10px;"><small>上次聯繫日期</small><input type="date" id="f_last"></div>
-                <div style="margin-bottom: 10px;"><small>預計再聯繫</small><input type="date" id="f_next"></div>
-
+                <div class="date-field-wrap">
+                    <small class="accent-label">初次 DEMO 日期</small>
+                    <div class="date-input-row">
+                        <div class="date-display empty" id="disp_demo" onclick="openCal('demo')">點擊選擇日期</div>
+                        <button type="button" class="date-clear-btn" onclick="clearDate('demo')" title="清除">✕</button>
+                    </div>
+                    <input type="hidden" id="f_demo">
+                </div>
+                <div class="date-field-wrap">
+                    <small>上次聯繫日期</small>
+                    <div class="date-input-row">
+                        <div class="date-display empty" id="disp_last" onclick="openCal('last')">點擊選擇日期</div>
+                        <button type="button" class="date-clear-btn" onclick="clearDate('last')" title="清除">✕</button>
+                    </div>
+                    <input type="hidden" id="f_last">
+                </div>
+                <div class="date-field-wrap">
+                    <small>預計再聯繫</small>
+                    <div class="date-input-row">
+                        <div class="date-display empty" id="disp_next" onclick="openCal('next')">點擊選擇日期</div>
+                        <button type="button" class="date-clear-btn" onclick="clearDate('next')" title="清除">✕</button>
+                    </div>
+                    <input type="hidden" id="f_next">
+                </div>
+                <!-- FIX #5: 上次聯繫 > 再聯繫 警告 -->
+                <div id="dateConflictWarn" class="date-conflict-warn">⚠️ 「上次聯繫」日期晚於「再聯繫」日期，請確認是否正確</div>
+ 
                 <label style="display:flex; justify-content: space-between; align-items: center;">互動紀錄筆記 <span onclick="insertTimestamp()" style="cursor:pointer; color:var(--link-blue); font-size:0.8em;">🕒 插入時間戳</span></label>
                 <textarea id="f_note" rows="5" placeholder="輸入詳細互動細節..."></textarea>
                 
@@ -171,14 +240,14 @@
                 <button type="button" class="btn btn-sub" style="width:100%; margin-top:8px;" onclick="handleNextEntry()">➕ 新增下一筆</button>
             </form>
         </div>
-
+ 
         <div class="content" id="scrollContent">
             <div class="stats-bar" id="statsBar">
                 <div class="stat-item">總數: <span id="stat-total">0</span></div>
                 <div class="stat-item" style="color:var(--status-overdue)">逾期: <span id="stat-due">0</span></div>
                 <div class="stat-item" style="color:var(--calendar-green)">已簽約: <span id="stat-signed">0</span></div>
             </div>
-
+ 
             <div class="tabs-row" id="tabContainer">
                 <button class="tab-btn active" data-filter="all">全部</button>
                 <button class="tab-btn" data-filter="due">⚠️ 逾期/今日</button>
@@ -191,12 +260,13 @@
                 <button class="tab-btn" data-filter="E暫無需求">E暫無需求</button>
                 <button class="tab-btn" data-filter="Z電聯寄件">Z電聯寄件</button>
             </div>
-
+ 
+            <!-- FIX #2: 搜尋欄即時觸發、清除即時生效 -->
             <div class="search-box">
                 <input type="text" id="search" placeholder="🔍 搜尋姓名、公司、Email 或紀錄 (可多關鍵字)...">
-                <button class="btn-clear-search" onclick="clearSearch()">✕</button>
+                <button type="button" class="btn-clear-search" onclick="clearSearch()">✕</button>
             </div>
-
+ 
             <div class="sort-row">
                 <span>排序方式:</span>
                 <select id="sortField" onchange="resetPageAndRender()">
@@ -210,12 +280,32 @@
                     <option value="asc">由舊到新 (升冪)</option>
                 </select>
             </div>
-
+ 
             <div id="contactList"></div>
             <button id="loadMoreBtn" class="load-more-btn" style="display:none;" onclick="loadMore()">載入更多聯絡人...</button>
         </div>
     </div>
-
+ 
+    <!-- 日曆彈窗 -->
+    <div id="calOverlay" class="cal-overlay" style="display:none;" onclick="closeCal()"></div>
+    <div id="calPopup" class="cal-popup" style="display:none;">
+        <div class="cal-header">
+            <button type="button" class="cal-nav" id="calPrevYear" onclick="calNavYear(-1)">«</button>
+            <button type="button" class="cal-nav" id="calPrev" onclick="calNavMonth(-1)">‹</button>
+            <span class="cal-month-label" id="calMonthLabel"></span>
+            <button type="button" class="cal-nav" id="calNext" onclick="calNavMonth(1)">›</button>
+            <button type="button" class="cal-nav" id="calNextYear" onclick="calNavYear(1)">»</button>
+        </div>
+        <div class="cal-grid" id="calGrid"></div>
+        <div class="cal-quick">
+            <button type="button" class="cal-quick-btn" onclick="calQuick(0)">今天</button>
+            <button type="button" class="cal-quick-btn" onclick="calQuick(1)">+1天</button>
+            <button type="button" class="cal-quick-btn" onclick="calQuick(3)">+3天</button>
+            <button type="button" class="cal-quick-btn" onclick="calQuick(7)">+7天</button>
+            <button type="button" class="cal-quick-btn" onclick="calQuick(30)">+1個月</button>
+        </div>
+    </div>
+ 
     <div id="actionModal" class="modal" hidden>
         <div class="modal-bg"></div>
         <div class="modal-body">
@@ -224,7 +314,13 @@
                 <strong id="m_name"></strong> | <span id="m_comp"></span>
             </div>
             <label>本次聯繫重點：</label><textarea id="m_note_add" rows="3" placeholder="今日進度摘要..."></textarea>
-            <label>設定新的【再聯繫】日期：</label><input type="date" id="m_date_next">
+            <label>設定新的【再聯繫】日期：</label>
+            <!-- Modal 內日期選擇也用自訂日曆 -->
+            <div class="date-input-row" style="margin-bottom:12px;">
+                <div class="date-display empty" id="disp_modal_next" onclick="openCal('modal_next')">點擊選擇日期</div>
+                <button type="button" class="date-clear-btn" onclick="clearDate('modal_next')" title="清除">✕</button>
+            </div>
+            <input type="hidden" id="m_date_next">
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 25px;">
                 <button id="btnFinish" class="btn btn-main" style="background:var(--status-ok)">✅ 完成聯繫</button>
                 <button id="btnUpdate" class="btn btn-sub">📅 僅改日期</button>
@@ -232,24 +328,35 @@
             <button onclick="closeModal()" class="btn btn-sub" style="width:100%; margin-top:10px; background:none;">忽略</button>
         </div>
     </div>
-
+ 
     <div class="notification-bell" onclick="testNotification()" title="測試並開啟通知">🔔</div>
     <div id="toast" class="toast" hidden></div>
-
+ 
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
     <script>
-        /* --- SaaS 認證系統與原始邏輯融合 --- */
+    /* =====================================================
+       Ken CRM V11 — 完整優化版
+       修復清單：
+       #1 Ragic 同步後點擊其他客戶不覆蓋 note + 加入刷新按鈕
+       #2 搜尋即時觸發、清除即時生效
+       #3 快速延遲加入 +1 天
+       #4 後端：上次聯繫涵蓋「談簽約」「教育訓練」（需同步更新 GAS）
+       #5 自訂日曆取代原生 date picker，防止日期逆序
+       #6 卡片新增「刷新 Ragic」按鈕，主動更新上次聯繫
+       #7 其他優化：stat-signed、搜尋 highlight、衝突偵測
+    ===================================================== */
+ 
         let myToken = localStorage.getItem('ken_crm_token');
         let myUserId = localStorage.getItem('ken_crm_userid');
         let isRegMode = false;
-
+ 
         const CONFIG = {
             DB_NAME: "KenCRM_DB", DB_VERSION: 1, STORE_NAME: "contacts",
             GOOGLE_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbxm4MQEBD1wiyj-BofQ1jhfIQ7b0kY5v7ZvYoCdhO3S0nKH4AeK9ieVyXvfjoQuzRSU/exec',
             PAGE_SIZE: 30, AUTO_SYNC_INTERVAL: 10 * 60 * 1000,
             DB_KEY: "ken_crm_v4", TRASH_KEY: "ken_crm_trash", EX_BACKUP_TS_KEY: "ken_crm_last_excel_backup"
         };
-
+ 
         const UI = {
             form: () => document.getElementById("crmForm"),
             list: () => document.getElementById("contactList"),
@@ -259,15 +366,137 @@
             loadMoreBtn: () => document.getElementById("loadMoreBtn"),
             remind: () => document.getElementById("backupRemind")
         };
-
+ 
         let contacts = [];
         let searchCache = [];
-        let isSyncing = false; 
+        let isSyncing = false;
         let currentPage = 1;
         let currentFilter = "all";
-        let isDirty = false; // 髒標記效能優化
-
-        // --- SaaS 身份動作 ---
+        let isDirty = false;
+        let searchTimer = null;
+ 
+        // =============================================
+        // #5 — 自訂日曆元件
+        // =============================================
+        let calTarget = null; // 'demo' | 'last' | 'next' | 'modal_next'
+        let calYear = 0, calMonth = 0;
+ 
+        const CAL_FIELDS = { demo: 'f_demo', last: 'f_last', next: 'f_next', modal_next: 'm_date_next' };
+        const CAL_DISPS  = { demo: 'disp_demo', last: 'disp_last', next: 'disp_next', modal_next: 'disp_modal_next' };
+        const CAL_MONTHS = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
+        const CAL_DOWS   = ['日','一','二','三','四','五','六'];
+ 
+        function openCal(field) {
+            calTarget = field;
+            const existing = document.getElementById(CAL_FIELDS[field]).value;
+            const ref = existing ? new Date(existing + 'T00:00:00') : new Date();
+            calYear = ref.getFullYear();
+            calMonth = ref.getMonth();
+            renderCal();
+ 
+            // 定位彈窗在對應顯示框旁邊
+            const disp = document.getElementById(CAL_DISPS[field]);
+            const rect = disp.getBoundingClientRect();
+            const popup = document.getElementById('calPopup');
+            popup.style.display = 'block';
+            document.getElementById('calOverlay').style.display = 'block';
+ 
+            // 計算位置（避免超出視窗）
+            let top = rect.bottom + 6;
+            let left = rect.left;
+            if (left + 290 > window.innerWidth) left = window.innerWidth - 296;
+            if (top + 320 > window.innerHeight) top = rect.top - 326;
+            popup.style.top = top + 'px';
+            popup.style.left = left + 'px';
+        }
+ 
+        function closeCal() {
+            document.getElementById('calPopup').style.display = 'none';
+            document.getElementById('calOverlay').style.display = 'none';
+            calTarget = null;
+        }
+ 
+        function calNavMonth(d) { calMonth += d; if (calMonth > 11) { calMonth = 0; calYear++; } if (calMonth < 0) { calMonth = 11; calYear--; } renderCal(); }
+        function calNavYear(d) { calYear += d; renderCal(); }
+ 
+        function renderCal() {
+            document.getElementById('calMonthLabel').textContent = `${calYear} 年 ${CAL_MONTHS[calMonth]}`;
+            const grid = document.getElementById('calGrid');
+            grid.innerHTML = '';
+            CAL_DOWS.forEach(d => { const el = document.createElement('div'); el.className = 'cal-dow'; el.textContent = d; grid.appendChild(el); });
+ 
+            const firstDay = new Date(calYear, calMonth, 1).getDay();
+            const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+            const todayStr = new Date().toISOString().split('T')[0];
+            const selectedStr = calTarget ? document.getElementById(CAL_FIELDS[calTarget]).value : '';
+ 
+            for (let i = 0; i < firstDay; i++) { const el = document.createElement('div'); el.className = 'cal-day empty'; grid.appendChild(el); }
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                const el = document.createElement('div');
+                el.className = 'cal-day';
+                if (dateStr === todayStr) el.classList.add('today');
+                if (dateStr === selectedStr) el.classList.add('selected');
+                el.textContent = d;
+                el.onclick = () => calSelect(dateStr);
+                grid.appendChild(el);
+            }
+        }
+ 
+        function calSelect(dateStr) {
+            if (!calTarget) return;
+            setDateField(calTarget, dateStr);
+            closeCal();
+            checkDateConflict();
+        }
+ 
+        function calQuick(days) {
+            const d = new Date(); d.setDate(d.getDate() + days);
+            const dateStr = d.toISOString().split('T')[0];
+            calSelect(dateStr);
+        }
+ 
+        function setDateField(field, dateStr) {
+            document.getElementById(CAL_FIELDS[field]).value = dateStr;
+            const disp = document.getElementById(CAL_DISPS[field]);
+            if (dateStr) {
+                disp.textContent = formatDateDisplay(dateStr);
+                disp.classList.add('has-date');
+                disp.classList.remove('empty');
+            } else {
+                disp.textContent = '點擊選擇日期';
+                disp.classList.remove('has-date');
+                disp.classList.add('empty');
+            }
+        }
+ 
+        function clearDate(field) {
+            setDateField(field, '');
+            checkDateConflict();
+        }
+ 
+        function formatDateDisplay(dateStr) {
+            if (!dateStr) return '點擊選擇日期';
+            const [y, m, d] = dateStr.split('-');
+            const days = ['日','一','二','三','四','五','六'];
+            const dayOfWeek = new Date(dateStr + 'T00:00:00').getDay();
+            return `${y}/${m}/${d} (${days[dayOfWeek]})`;
+        }
+ 
+        function checkDateConflict() {
+            const last = document.getElementById('f_last').value;
+            const next = document.getElementById('f_next').value;
+            const warn = document.getElementById('dateConflictWarn');
+            if (last && next && last > next) {
+                warn.classList.add('show');
+            } else {
+                warn.classList.remove('show');
+            }
+        }
+ 
+        // =============================================
+        // SaaS 身份動作
+        // =============================================
         function toggleAuthMode() {
             isRegMode = !isRegMode;
             document.getElementById("authTitle").textContent = isRegMode ? "Ken CRM | 帳號註冊" : "Ken CRM | 系統登入";
@@ -275,20 +504,17 @@
             document.getElementById("regFields").style.display = isRegMode ? "block" : "none";
             document.getElementById("authToggle").textContent = isRegMode ? "已有帳號？返回登入" : "尚未擁有權限？點此註冊";
         }
-
+ 
         async function handleAuthAction() {
             const userId = document.getElementById("auth_user").value.trim();
             const pass = document.getElementById("auth_pass").value.trim();
             const ragic = document.getElementById("auth_ragic").value.trim();
-
             if (!userId || !pass || (isRegMode && !ragic)) { alert("請填寫完整資訊"); return; }
             const btn = document.getElementById("btnSubmit");
             btn.disabled = true; btn.textContent = "驗證中...";
-
             try {
                 const res = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify({ action: isRegMode ? 'register' : 'login', userId, password: pass, ragicKey: ragic })
                 });
                 const data = await res.json();
@@ -299,40 +525,32 @@
                     document.getElementById("authOverlay").style.display = "none";
                     loadInitialData();
                 }
-            } catch (e) { alert("無法連接至雲端中央大腦，請檢查 GAS 部署權限"); }
+            } catch (e) { alert("無法連接至雲端，請檢查 GAS 部署權限"); }
             finally { btn.disabled = false; btn.textContent = isRegMode ? "註冊" : "登入"; }
         }
-
+ 
         function logout() { if(confirm("確定登出帳號？")){ localStorage.removeItem('ken_crm_token'); location.reload(); } }
-
+ 
         async function updateRagicKey() {
             const newKey = prompt("請貼上您新的 Ragic API Key：\n(更換後立即生效)");
             if (!newKey || newKey.trim() === "") return;
-
             const btn = document.querySelector('button[onclick="updateRagicKey()"]');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = "⏳ 更新中...";
-            btn.disabled = true;
-
+            const originalText = btn.innerHTML; btn.innerHTML = "⏳ 更新中..."; btn.disabled = true;
             try {
                 const res = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify({ action: 'updateKey', token: myToken, newKey: newKey.trim() })
                 });
                 const data = await res.json();
                 if (data.error) throw new Error(data.error);
-                
                 showToast("✅ Ragic API Key 已成功更新！");
-            } catch (e) {
-                alert("更新失敗，請檢查網路連線");
-            } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }
+            } catch (e) { alert("更新失敗，請檢查網路連線"); }
+            finally { btn.innerHTML = originalText; btn.disabled = false; }
         }
-
-        // --- 核心 IndexedDB ---
+ 
+        // =============================================
+        // IndexedDB
+        // =============================================
         const DB = {
             async init() {
                 return new Promise((resolve) => {
@@ -355,94 +573,127 @@
                 store.clear(); data.forEach(item => store.put(item));
             }
         };
-
-        // --- 資料動作 ---
+ 
+        // =============================================
+        // 資料載入
+        // =============================================
         async function loadInitialData() {
             if (!myToken) { document.getElementById("authOverlay").style.display = "flex"; return; }
             document.getElementById("authOverlay").style.display = "none";
             UI.syncStatus().textContent = "⏳ 下載個人存檔...";
             try {
                 const res = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify({ action: 'load', token: myToken })
                 });
                 const cloudData = await res.json();
-                if (Array.isArray(cloudData)) { 
-                    contacts = cloudData; 
-                    await DB.saveAll(contacts); 
-                    UI.syncStatus().textContent = `(✅ 使用者:${myUserId})`; 
+                if (Array.isArray(cloudData)) {
+                    contacts = cloudData;
+                    await DB.saveAll(contacts);
+                    UI.syncStatus().textContent = `(✅ 使用者:${myUserId})`;
                 }
-            } catch (e) { 
-                UI.syncStatus().textContent = "(離線模式)"; 
-                contacts = await DB.getAll(); 
+            } catch (e) {
+                UI.syncStatus().textContent = "(離線模式)";
+                contacts = await DB.getAll();
             }
             updateSearchCache(); render(); checkTodayTasksAndNotify();
         }
-
-        async function handleUrlSync() {
+ 
+        // =============================================
+        // FIX #1 — Ragic 同步邏輯
+        // 核心修正：同步完後記錄哪個聯絡人的 URL 已同步過
+        // 當點擊其他客戶時，不讓 ragicUrl 欄位觸發自動填入
+        // =============================================
+        let _lastSyncedUrl = ""; // 記錄上次同步的 URL，避免 edit() 後誤覆蓋
+ 
+        async function handleUrlSync(isRefresh = false) {
             const url = document.getElementById("f_ragic_url").value.trim();
             const syncBtn = document.getElementById("syncBtn");
-            
-            if (!url || !url.includes("ragic.com")) { showToast("⚠️ 請貼上正確網址"); return; }
-            
+            if (!url || !url.includes("ragic.com")) { showToast("⚠️ 請貼上正確的 Ragic 網址"); return; }
+ 
             const originalBtnText = syncBtn.innerHTML;
             syncBtn.disabled = true;
-            syncBtn.innerHTML = "⏳ 努力解析中..."; 
+            syncBtn.innerHTML = "⏳ 解析中...";
             syncBtn.style.opacity = "0.7";
-            
-            UI.syncStatus().textContent = "⏳ 正在與 Ragic 伺服器通訊，請稍候...";
+            UI.syncStatus().textContent = "⏳ 正在與 Ragic 伺服器通訊...";
             showToast("⏳ 開始雲端深度同步...");
-
+ 
             try {
                 const res = await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify({ action: 'fetchRagic', token: myToken, ragicUrl: url })
                 });
                 const data = await res.json();
-                
                 if (data.error) throw new Error(data.error);
-                
-                document.getElementById("f_name").value = data.name || "";
-                document.getElementById("f_company").value = data.company || "";
-                document.getElementById("f_email").value = data.email || "";
-                document.getElementById("f_demo").value = data.demo || "";
-                document.getElementById("f_last").value = data.last || "";
-                
-                showToast("✅ Ragic 資料已成功填入");
+ 
+                // FIX #1：刷新模式（isRefresh = true）時，只更新日期欄位，不覆蓋姓名/公司/筆記
+                if (isRefresh) {
+                    // 只更新 demo / last 日期
+                    if (data.demo) setDateField('demo', data.demo);
+                    if (data.last) setDateField('last', data.last);
+                    showToast("✅ Ragic 日期已刷新");
+                } else {
+                    // 全新同步：填入所有欄位
+                    document.getElementById("f_name").value    = data.name    || "";
+                    document.getElementById("f_company").value = data.company || "";
+                    document.getElementById("f_email").value   = data.email   || "";
+                    if (data.demo) setDateField('demo', data.demo); else clearDate('demo');
+                    if (data.last) setDateField('last', data.last); else clearDate('last');
+                    showToast("✅ Ragic 資料已成功填入");
+                }
+ 
+                _lastSyncedUrl = url;
+                setRagicHint('synced', isRefresh ? '✅ 日期已從 Ragic 刷新' : '✅ 資料已同步');
                 UI.syncStatus().textContent = "(✅ 同步成功)";
-                
-            } catch (e) { 
-                showToast("❌ 同步失敗：" + e.message); 
+ 
+            } catch (e) {
+                showToast("❌ 同步失敗：" + e.message);
+                setRagicHint('dirty', '❌ 同步失敗：' + e.message);
                 UI.syncStatus().textContent = "(⚠️ 同步失敗)";
-            } finally { 
-                syncBtn.disabled = false; 
+            } finally {
+                syncBtn.disabled = false;
                 syncBtn.innerHTML = originalBtnText;
                 syncBtn.style.opacity = "1";
             }
         }
-
+ 
+        // FIX #6 — 從卡片觸發的「刷新 Ragic」（只更新日期，不覆蓋筆記）
+        async function refreshRagicForCard(id) {
+            const c = contacts.find(x => x.id === id);
+            if (!c || !c.ragic_url) { showToast("⚠️ 此客戶無 Ragic 連結"); return; }
+            // 載入此客戶到表單
+            edit(id);
+            // 觸發刷新模式同步
+            await handleUrlSync(true);
+            // 自動儲存
+            if (processSubmit()) showToast(`✅ ${c.name} 的 Ragic 資料已刷新並儲存`);
+        }
+ 
+        function setRagicHint(type, msg) {
+            const el = document.getElementById('ragicStatusHint');
+            el.textContent = msg;
+            el.className = 'ragic-status-hint ' + type;
+        }
+ 
         async function syncToCloud(isAuto = false) {
             if (isSyncing || !myToken) return;
-            // 效能優化：如果為自動存檔且資料無更動，直接略過上傳
-            if (isAuto && !isDirty) return; 
-
+            if (isAuto && !isDirty) return;
             isSyncing = true;
             UI.syncStatus().textContent = isAuto ? "⏳ 自動儲存中..." : "☁️ 雲端同步中...";
             try {
                 await fetch(CONFIG.GOOGLE_SCRIPT_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                     body: JSON.stringify({ action: 'save', token: myToken, data: contacts })
                 });
                 UI.syncStatus().textContent = `(✅ 同步完成 ${new Date().toLocaleTimeString()})`;
-                isDirty = false; // 存檔成功後，將髒標記重置
+                isDirty = false;
             } catch (e) { UI.syncStatus().textContent = "(同步失敗)"; }
             finally { isSyncing = false; }
         }
-
-        // --- 原始 UI 與 日期邏輯 ---
+ 
+        // =============================================
+        // 日期工具
+        // =============================================
         function parseDate(v) {
             if (!v) return "";
             if (v instanceof Date) return v.toISOString().split('T')[0];
@@ -455,7 +706,7 @@
             }
             const d = new Date(s); return isNaN(d.getTime()) ? "" : d.toISOString().split('T')[0];
         }
-
+ 
         function getDayLabel(dateStr) {
             if (!dateStr) return "";
             const today = new Date(); today.setHours(0,0,0,0);
@@ -465,7 +716,7 @@
             if (diff < 0) return `【逾期 ${Math.abs(diff)} 天】`;
             return `【${diff} 天後】`;
         }
-
+ 
         function getGoogleCalendarLink(c) {
             if (!c.next) return null;
             const dateStr = c.next.replace(/-/g, '');
@@ -473,7 +724,7 @@
             const details = encodeURIComponent(`分類：${c.tag}\n筆記：${c.note || '無'}`);
             return `https://www.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dateStr}/${dateStr}&details=${details}`;
         }
-
+ 
         function insertTimestamp() {
             const area = document.getElementById("f_note");
             const now = new Date();
@@ -481,7 +732,8 @@
             area.value = ts + area.value;
             area.focus(); area.setSelectionRange(ts.length, ts.length);
         }
-
+ 
+        // FIX #3 — 加入 +1 天
         function quickUpdateNextDate(id, days) {
             const idx = contacts.findIndex(c => c.id === id);
             if (idx === -1) return;
@@ -490,31 +742,35 @@
             const dateStr = baseDate.toISOString().split('T')[0];
             contacts[idx].next = dateStr;
             contacts[idx].update_ts = Date.now();
-            isDirty = true; // 標記為需上傳
+            isDirty = true;
             save();
             showToast(`已延後 ${days} 天至 ${dateStr}`);
         }
-
+ 
         function updateSearchCache() {
             searchCache = contacts.map(c => ({
-                id: c.id, searchStr: (`${c.name||''} ${c.email||''} ${c.company||''} ${c.note||''} ${c.tag||''}`).toLowerCase()
+                id: c.id,
+                searchStr: (`${c.name||''} ${c.email||''} ${c.company||''} ${c.note||''} ${c.tag||''}`).toLowerCase()
             }));
         }
-
+ 
+        // =============================================
+        // 渲染
+        // =============================================
         function render(isAppend = false) {
             const container = UI.list();
             const today = new Date().toISOString().split('T')[0];
             const currentEditId = document.getElementById("f_id").value;
             if (!isAppend) container.textContent = "";
-
+ 
             let filtered = contacts.filter((c, index) => {
                 const kw = UI.search().value.toLowerCase().trim().split(/\s+/);
-                const matches = kw[0] === "" || kw.every(k => searchCache[index].searchStr.includes(k));
+                const matches = kw[0] === "" || kw.every(k => searchCache[index] && searchCache[index].searchStr.includes(k));
                 if (!matches) return false;
                 if (currentFilter === "due") return c.next && c.next <= today;
                 return currentFilter === "all" || c.tag === currentFilter;
             });
-
+ 
             const sortF = document.getElementById("sortField").value;
             const sortO = document.getElementById("sortOrder").value;
             filtered.sort((a, b) => {
@@ -522,10 +778,10 @@
                 let valB = b[sortF] || (sortO === 'asc' ? 'zzzz' : '0000');
                 return sortO === 'asc' ? valA.toString().localeCompare(valB.toString()) : valB.toString().localeCompare(valA.toString());
             });
-
+ 
             const start = (currentPage - 1) * CONFIG.PAGE_SIZE;
             const items = filtered.slice(start, start + CONFIG.PAGE_SIZE);
-
+ 
             items.forEach(c => {
                 const stay = c.create_date ? Math.floor((new Date() - new Date(c.create_date))/86400000) : 0;
                 let statusClass = "card-ok";
@@ -537,14 +793,14 @@
                     else if (diff === 0) statusClass = "card-today";
                     else if (diff <= 3) statusClass = "card-soon";
                 }
-
+ 
                 const div = document.createElement("div");
                 div.className = `contact-card ${statusClass} ${c.id === currentEditId ? "editing" : ""}`;
                 div.id = `card-${c.id}`;
                 const gCalLink = getGoogleCalendarLink(c);
                 const gmailLink = c.email ? `https://mail.google.com/mail/?view=cm&fs=1&to=${c.email}` : '#';
                 const tagClickAttr = (c.tag === "Z電聯寄件") ? `onclick="event.stopPropagation(); copyShippingInfo('${c.id}')"` : '';
-
+ 
                 div.innerHTML = `
                     <div style="flex:1;">
                         <div onclick="edit('${c.id}')" style="cursor:pointer;">
@@ -552,24 +808,31 @@
                             <div style="font-size:0.85em; color:#666; margin:2px 0;">${c.company || '個人'}</div>
                             <div style="font-size:0.82em; color:#444;">
                                 🆕 DEMO：${c.demo || '--'} | <span class="date-warning-text">📅 預計：${c.next || '未定'} ${getDayLabel(c.next)}</span>
+                                <span class="btn-quick-date" onclick="event.stopPropagation(); quickUpdateNextDate('${c.id}', 1)">+1天</span>
                                 <span class="btn-quick-date" onclick="event.stopPropagation(); quickUpdateNextDate('${c.id}', 3)">+3天</span>
                                 <span class="btn-quick-date" onclick="event.stopPropagation(); quickUpdateNextDate('${c.id}', 7)">+7天</span>
                             </div>
+                            <div style="font-size:0.78em; color:#999; margin-top:2px;">🤝 上次聯繫：${c.last || '--'}</div>
                         </div>
-                        <div style="display: flex; gap:5px; margin-top:5px;">
+                        <div style="display: flex; gap:5px; margin-top:5px; flex-wrap:wrap;">
                             ${c.email ? `<a href="${gmailLink}" target="_blank" class="btn-ragic" style="background:#ea4335">✉️ Mail</a>` : ''}
                             ${c.ragic_url ? `<a href="${c.ragic_url}" target="_blank" class="btn-ragic">🚀 Ragic</a>` : ''}
                             ${gCalLink ? `<a href="${gCalLink}" target="_blank" class="btn-calendar">📅 行事曆</a>` : ''}
+                            ${c.ragic_url ? `<button class="btn-refresh-ragic" onclick="event.stopPropagation(); refreshRagicForCard('${c.id}')">🔄 刷新</button>` : ''}
                         </div>
                     </div>
-                    <button onclick="deleteC('${c.id}')" style="background:none; border:none; color:#ddd; cursor:pointer; padding-left:10px;">🗑️</button>
+                    <button onclick="deleteC('${c.id}')" style="background:none; border:none; color:#ddd; cursor:pointer; padding-left:10px; font-size:1.1em;">🗑️</button>
                 `;
                 container.appendChild(div);
             });
             updateStats();
             UI.loadMoreBtn().style.display = filtered.length > start + CONFIG.PAGE_SIZE ? "block" : "none";
         }
-
+ 
+        // =============================================
+        // FIX #1 — edit() 載入客戶時，重置 Ragic 狀態
+        // 關鍵：不因點擊卡片後 URL 改變就自動同步覆蓋筆記
+        // =============================================
         function edit(id) {
             const c = contacts.find(x => x.id === id);
             if (!c) return;
@@ -581,68 +844,78 @@
             document.getElementById("f_ragic_url").value = c.ragic_url || "";
             document.getElementById("f_note").value = c.note || "";
             document.getElementById("f_tag").value = c.tag;
-            document.getElementById("f_demo").value = c.demo || "";
-            document.getElementById("f_last").value = c.last || "";
-            document.getElementById("f_next").value = c.next || "";
+ 
+            // 使用自訂日曆 setter
+            setDateField('demo', c.demo || '');
+            setDateField('last', c.last || '');
+            setDateField('next', c.next || '');
+ 
+            // FIX #1：記錄目前 URL，並重置提示
+            _lastSyncedUrl = c.ragic_url || '';
+            setRagicHint('', '');
+            checkDateConflict();
+ 
             render();
             window.scrollTo({top:0, behavior:'smooth'});
         }
-
-        // --- 完整還原：刪除復原機制與 Toast ---
-        function showToast(m, isDelete = false) { 
-            const t = UI.toast(); 
-            t.innerHTML = isDelete ? `${m} <span onclick="restoreTrash()" style="text-decoration:underline; cursor:pointer; margin-left:10px;">復原</span>` : m;
-            t.hidden = false; 
-            setTimeout(()=>t.hidden=true, 4000); 
+ 
+        // =============================================
+        // Toast / Delete / Restore
+        // =============================================
+        function showToast(m, isDelete = false) {
+            const t = UI.toast();
+            t.innerHTML = isDelete
+                ? `${m} <span onclick="restoreTrash()" style="text-decoration:underline; cursor:pointer; margin-left:10px;">復原</span>`
+                : m;
+            t.hidden = false;
+            clearTimeout(showToast._timer);
+            showToast._timer = setTimeout(() => t.hidden = true, 4000);
         }
-
-        function deleteC(id) { 
-            if(confirm("確定刪除此聯絡人？")) { 
+ 
+        function deleteC(id) {
+            if(confirm("確定刪除此聯絡人？")) {
                 const target = contacts.find(c => c.id === id);
                 if (!target) return;
                 localStorage.setItem(CONFIG.TRASH_KEY, JSON.stringify(target));
-                contacts = contacts.filter(c=>c.id!==id); 
-                isDirty = true; // 標記為需上傳
-                save(); 
+                contacts = contacts.filter(c => c.id !== id);
+                isDirty = true; save();
                 showToast("已刪除聯絡人", true);
-            } 
+            }
         }
-
+ 
         function restoreTrash() {
-            const trashedStr = localStorage.getItem(CONFIG.TRASH_KEY);
-            if (trashedStr) {
-                const trashed = JSON.parse(trashedStr);
-                contacts.push(trashed);
+            const str = localStorage.getItem(CONFIG.TRASH_KEY);
+            if (str) {
+                contacts.push(JSON.parse(str));
                 localStorage.removeItem(CONFIG.TRASH_KEY);
-                isDirty = true; // 標記為需上傳
-                save();
+                isDirty = true; save();
                 showToast("✅ 已還原聯絡人");
             }
         }
-
-        // --- 完整還原：儲存與 Excel 匯出/匯入機制 ---
+ 
+        // =============================================
+        // 儲存
+        // =============================================
         async function save() {
             await DB.saveAll(contacts);
-            updateSearchCache(); 
-            render(); 
+            updateSearchCache();
+            render();
             syncToCloud(true);
-            checkTodayTasksAndNotify(); 
+            checkTodayTasksAndNotify();
             checkBackupStatus();
         }
-
+ 
         function processSubmit() {
             const nameVal = document.getElementById("f_name").value.trim();
-            const emailVal = document.getElementById("f_email").value.trim();
-            const companyVal = document.getElementById("f_company").value.trim();
-            
             if (!nameVal) { showToast("⚠️ 請填寫聯絡人名稱"); return false; }
-
+ 
             const id = document.getElementById("f_id").value || "K-" + Date.now();
             const createDate = document.getElementById("f_create_date").value || new Date().toISOString();
             const newData = {
-                id, create_date: createDate, 
-                update_ts: Date.now(),
-                name: nameVal, company: companyVal, email: emailVal,
+                id, create_date: createDate, update_ts: Date.now(),
+                name: nameVal,
+                company: document.getElementById("f_company").value.trim(),
+                email: document.getElementById("f_email").value.trim(),
                 ragic_url: document.getElementById("f_ragic_url").value.trim(),
                 note: document.getElementById("f_note").value.trim(),
                 tag: document.getElementById("f_tag").value,
@@ -650,12 +923,11 @@
                 last: document.getElementById("f_last").value,
                 next: document.getElementById("f_next").value
             };
-
-            const dupIdx = contacts.findIndex(c => 
-                c.id !== id && 
+ 
+            const dupIdx = contacts.findIndex(c =>
+                c.id !== id &&
                 ((c.name === newData.name && c.company === newData.company) || (newData.email && c.email === newData.email))
             );
-
             if (dupIdx >= 0 && !document.getElementById("f_id").value) {
                 if (!confirm(`重複對象 [${newData.name}]，是否覆蓋更新？`)) return false;
                 Object.assign(contacts[dupIdx], newData);
@@ -663,45 +935,54 @@
                 const idx = contacts.findIndex(c => c.id === id);
                 if (idx >= 0) contacts[idx] = newData; else contacts.push(newData);
             }
-            isDirty = true; // 標記為需上傳
-            save(); return true;
+            isDirty = true; save(); return true;
         }
-
-        UI.form().onsubmit = (e) => { 
-            e.preventDefault(); 
-            if(processSubmit()){ resetForm(); showToast("資料已儲存並同步"); } 
+ 
+        UI.form().onsubmit = (e) => {
+            e.preventDefault();
+            if(processSubmit()){ resetForm(); showToast("資料已儲存並同步"); }
         };
-
-        function handleNextEntry() { 
+ 
+        function handleNextEntry() {
             if(document.getElementById("f_name").value.trim()) {
                 if(processSubmit()){ resetForm(); showToast("已儲存並準備下一筆"); }
             } else { resetForm(); }
         }
-
-        function resetForm() { 
-            UI.form().reset(); 
-            document.getElementById("f_id").value=""; 
-            document.getElementById("f_create_date").value="";
-            document.getElementById("f_update_ts").value="";
-            render(); 
+ 
+        function resetForm() {
+            UI.form().reset();
+            document.getElementById("f_id").value = "";
+            document.getElementById("f_create_date").value = "";
+            document.getElementById("f_update_ts").value = "";
+            // 重置自訂日曆顯示
+            ['demo','last','next'].forEach(f => setDateField(f, ''));
+            setRagicHint('', '');
+            _lastSyncedUrl = '';
+            document.getElementById('dateConflictWarn').classList.remove('show');
+            render();
         }
-
+ 
         function resetPageAndRender() { currentPage = 1; render(); }
         function loadMore() { currentPage++; render(true); }
+ 
         function updateStats() {
+            const today = new Date().toISOString().split('T')[0];
             document.getElementById("stat-total").textContent = contacts.length;
-            document.getElementById("stat-due").textContent = contacts.filter(c => c.next && c.next <= new Date().toISOString().split('T')[0]).length;
+            document.getElementById("stat-due").textContent = contacts.filter(c => c.next && c.next <= today).length;
+            // FIX #7: 加入已簽約統計
+            const signed = contacts.filter(c => c.tag === 'SS簽約客戶' || c.tag === 'S續約客戶').length;
+            document.getElementById("stat-signed").textContent = signed;
         }
-        
+ 
         function copyShippingInfo(id) {
             const c = contacts.find(x => x.id === id);
             if(!c) return;
             const info = `聯絡人：${c.name}\n公司：${c.company || '個人'}\nEmail：${c.email || '無'}`;
             navigator.clipboard.writeText(info).then(() => showToast("📋 已複製寄件基本資訊"));
         }
-
+ 
         function closeModal() { document.getElementById("actionModal").hidden = true; }
-        
+ 
         async function checkTodayTasksAndNotify() {
             if (!("Notification" in window)) return;
             const todayStr = new Date().toISOString().split('T')[0];
@@ -716,7 +997,7 @@
                 });
             }
         }
-
+ 
         async function testNotification() {
             if (!("Notification" in window)) { alert("此瀏覽器不支援桌面通知"); return; }
             const permission = await Notification.requestPermission();
@@ -725,20 +1006,50 @@
                 showToast("✅ 通知功能已授權"); checkTodayTasksAndNotify();
             } else { showToast("❌ 通知權限已遭拒絕"); }
         }
-
+ 
         function checkBackupStatus() {
             const lastExBackup = parseInt(localStorage.getItem(CONFIG.EX_BACKUP_TS_KEY) || 0);
             if (Date.now() - lastExBackup > 86400000) {
-                UI.remind().innerHTML = "🚨 建議執行 Excel 匯出備份"; UI.remind().style.color = "#FF4757"; UI.remind().style.fontWeight = "bold";
+                UI.remind().innerHTML = "🚨 建議執行 Excel 匯出備份";
+                UI.remind().style.color = "#FF4757"; UI.remind().style.fontWeight = "bold";
             } else {
-                UI.remind().innerHTML = "✅ 資料安全性：高"; UI.remind().style.color = "#2ed573";
+                UI.remind().innerHTML = "✅ 資料安全性：高";
+                UI.remind().style.color = "#2ed573";
             }
         }
-
-        // --- 完整還原：Excel 匯入事件 ---
+ 
+        // =============================================
+        // FIX #2 — 搜尋即時觸發、clearSearch 即時生效
+        // =============================================
+        UI.search().addEventListener('input', () => {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => { currentPage = 1; render(); }, 150);
+        });
+ 
+        // 讓 Enter 也能觸發（方便鍵盤操作）
+        UI.search().addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') { e.preventDefault(); clearTimeout(searchTimer); currentPage = 1; render(); }
+        });
+ 
+        function clearSearch() {
+            UI.search().value = '';
+            currentPage = 1;
+            render(); // 立即觸發，不需 debounce
+        }
+ 
+        // Tab 點擊
+        document.getElementById("tabContainer").onclick = (e) => {
+            if (e.target.dataset.filter) {
+                document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+                e.target.classList.add("active");
+                currentFilter = e.target.dataset.filter;
+                resetPageAndRender();
+            }
+        };
+ 
+        // Excel 匯入
         document.getElementById("fileInput").onchange = (e) => {
-            const file = e.target.files[0];
-            if(!file) return;
+            const file = e.target.files[0]; if(!file) return;
             const reader = new FileReader();
             reader.onload = (evt) => {
                 try {
@@ -747,8 +1058,7 @@
                     rows.forEach(row => {
                         const n = {
                             id: "K-" + Math.random().toString(16).slice(2,10),
-                            create_date: new Date().toISOString(),
-                            update_ts: Date.now(),
+                            create_date: new Date().toISOString(), update_ts: Date.now(),
                             name: (row["聯絡人"] || "未知名").toString(),
                             email: (row["mail"] || "").toString().trim(),
                             company: (row["公司"] || "").toString().trim(),
@@ -762,26 +1072,17 @@
                         const idx = contacts.findIndex(c => c.name === n.name && c.company === n.company);
                         if (idx >= 0) Object.assign(contacts[idx], n); else contacts.push(n);
                     });
-                    isDirty = true; // 標記為需上傳
-                    save(); showToast("✅ Excel 匯入成功並已推至雲端");
-                } catch(err) {
-                    showToast("❌ 檔案讀取失敗，請確認格式");
-                }
+                    isDirty = true; save(); showToast("✅ Excel 匯入成功並已推至雲端");
+                } catch(err) { showToast("❌ 檔案讀取失敗，請確認格式"); }
             };
             reader.readAsArrayBuffer(file);
         };
-
-        UI.search().oninput = () => { clearTimeout(searchTimer); searchTimer = setTimeout(resetPageAndRender, 200); };
-        document.getElementById("tabContainer").onclick = (e) => { if(e.target.dataset.filter) { 
-            document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-            e.target.classList.add("active"); currentFilter = e.target.dataset.filter; resetPageAndRender();
-        }};
-        
-        // --- 完整還原：Excel 匯出 (包含自訂中文標頭) ---
+ 
+        // Excel 匯出
         document.getElementById("exportBtn").onclick = () => {
             const dataToExport = contacts.map(c => ({
-                "聯絡人": c.name, "公司": c.company, "mail": c.email, "分類": c.tag, 
-                "初次DEMO": c.demo, "上次聯繫": c.last, "再訪時間": c.next, 
+                "聯絡人": c.name, "公司": c.company, "mail": c.email, "分類": c.tag,
+                "初次DEMO": c.demo, "上次聯繫": c.last, "再訪時間": c.next,
                 "ragic": c.ragic_url, "記事": c.note
             }));
             const ws = XLSX.utils.json_to_sheet(dataToExport);
@@ -791,13 +1092,14 @@
             localStorage.setItem(CONFIG.EX_BACKUP_TS_KEY, Date.now());
             checkBackupStatus();
         };
-
-        (async () => { 
-            if (myToken) loadInitialData(); 
-            checkBackupStatus(); 
-            // 背景自動存檔每10分鐘觸發一次，內部會自動檢查 isDirty 標記
-            setInterval(() => syncToCloud(true), CONFIG.AUTO_SYNC_INTERVAL); 
+ 
+        // 啟動
+        (async () => {
+            if (myToken) loadInitialData();
+            checkBackupStatus();
+            setInterval(() => syncToCloud(true), CONFIG.AUTO_SYNC_INTERVAL);
         })();
     </script>
 </body>
 </html>
+ 
