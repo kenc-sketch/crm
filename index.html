@@ -1096,8 +1096,8 @@ function restoreTrash(){
 }
 
 /* ── save / processSubmit ── */
-async function save(){
-  await DB.saveAll(contacts);updateCache();render();syncToCloud(true);
+(){
+  updateCache();render();updateNotifBadge();checkBackupStatus();   await DB.saveAll(contacts);syncToCloud(true);
   updateNotifBadge();checkTodayNotify();checkBackupStatus();
 }
 function processSubmit(){
