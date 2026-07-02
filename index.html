@@ -784,6 +784,10 @@ async function handleUrlSync(isRefresh=false){
     const res=await fetch(CFG.GAS,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
       body:JSON.stringify({action:'fetchRagic',token:myToken,ragicUrl:url})});
     const d=await res.json();if(d.error)throw new Error(d.error);
+    if(!d.name&&!d.company&&!d.demo&&!d.last){
+      const hint=d._keys?('Ragic 欄位：'+d._keys):'無欄位資訊';
+      throw new Error('欄位對應失敗（'+hint+'）');
+    }
     if(isRefresh){
       if(d.demo)setDF('demo',d.demo);if(d.last)setDF('last',d.last);
       showToast('✅ Ragic 日期已刷新');
