@@ -1,6 +1,8 @@
 <!DOCTYPE html><html lang="zh-Hant"><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#C85A1A">
+<link rel="manifest" href="manifest.json">
 <title>Ken的CRM | 智慧銷售管家</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
 <style>
@@ -675,7 +677,7 @@ textarea{resize:vertical;min-height:80px;}
 </div>
 <div id="toast" hidden></div>
 
-<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<!-- SheetJS 改為 lazy load，只在匯入/匯出時載入 -->
 <script>
 /* Ken CRM V13 ─ 完整版 */
 let myToken=localStorage.getItem('ken_crm_token'), myUserId=localStorage.getItem('ken_crm_userid'), isRegMode=false;
@@ -686,6 +688,18 @@ const CFG={
 };
 let contacts=[],searchCache=[],isSyncing=false,isDirty=false;
 let currentPage=1,currentFilter='all',searchTimer=null,_lastSyncedUrl='';
+let _xlsxLoading=false;
+function loadXLSX(){
+  return new Promise((res,rej)=>{
+    if(typeof XLSX!=='undefined'){res();return;}
+    if(_xlsxLoading){const t=setInterval(()=>{if(typeof XLSX!=='undefined'){clearInterval(t);res();}},80);return;}
+    _xlsxLoading=true;
+    const s=document.createElement('script');
+    s.src='https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
+    s.onload=()=>res();s.onerror=()=>rej(new Error('SheetJS 載入失敗，請確認網路連線'));
+    document.head.appendChild(s);
+  });
+}
 
 /* ── DB (連線快取) ── */
 const DB=(()=>{
@@ -767,7 +781,13 @@ async function loadInitialData(){
       body:JSON.stringify({action:'load',token:myToken})});
     const cloud=await res.json();
     if(Array.isArray(cloud)){contacts=cloud;await DB.saveAll(contacts);setSS(`✅ ${myUserId}`);}
-    else throw new Error('格式異常');
+    else if(cloud&&cloud.error&&(cloud.error.includes('驗證失敗')||cloud.error.includes('重新登入'))){
+      localStorage.removeItem('ken_crm_token');myToken=null;
+      document.getElementById('authOverlay').style.display='flex';
+      document.getElementById('authErr').textContent='登入已過期，請重新登入';
+      document.getElementById('authErr').style.display='block';
+      return;
+    }else throw new Error('格式異常');
   }catch(e){setSS('離線模式');contacts=await DB.getAll();}
   finally{prog(false);}
   updateCache();render();updateNotifBadge();checkTodayNotify();
@@ -785,8 +805,7 @@ async function handleUrlSync(isRefresh=false){
       body:JSON.stringify({action:'fetchRagic',token:myToken,ragicUrl:url})});
     const d=await res.json();if(d.error)throw new Error(d.error);
     if(!d.name&&!d.company&&!d.demo&&!d.last){
-      const hint=d._keys?('Ragic 欄位：'+d._keys):'無欄位資訊';
-      throw new Error('欄位對應失敗（'+hint+'）');
+      throw new Error('Ragic 欄位對應失敗，請確認網址是否正確');
     }
     if(isRefresh){
       if(d.demo)setDF('demo',d.demo);if(d.last)setDF('last',d.last);
@@ -815,10 +834,13 @@ function setRH(t,m){const el=document.getElementById('ragicHint');el.textContent
 /* ── 雲端同步 ── */
 async function syncToCloud(isAuto=false){
   if(isSyncing||!myToken)return;if(isAuto&&!isDirty)return;
+  if(!navigator.onLine){setSS('📵 離線中');return;}
   isSyncing=true;setSS(isAuto?'⏳ 自動存檔...':'☁️ 同步中...');prog(true);
   try{
-    await fetch(CFG.GAS,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+    const res=await fetch(CFG.GAS,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
       body:JSON.stringify({action:'save',token:myToken,data:contacts})});
+    const result=await res.json();
+    if(result&&result.error)throw new Error(result.error);
     setSS(`✅ ${new Date().toLocaleTimeString()}`);isDirty=false;
   }catch(e){setSS('⚠️ 同步失敗');}
   finally{isSyncing=false;prog(false);}
@@ -1062,6 +1084,8 @@ function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt
 
 /* ── edit ── */
 function edit(id){
+  const prev=document.getElementById('f_id').value;
+  if(prev){const pc=document.getElementById('card-'+prev);if(pc)pc.classList.remove('editing');}
   const c=contacts.find(x=>x.id===id);if(!c)return;
   document.getElementById('f_id').value=c.id;
   document.getElementById('f_create_date').value=c.create_date||'';
@@ -1072,10 +1096,9 @@ function edit(id){
   document.getElementById('f_note').value=c.note||'';
   setTagUI(c.tag);setDF('demo',c.demo||'');setDF('last',c.last||'');setDF('next',c.next||'');
   _lastSyncedUrl=c.ragic_url||'';setRH('','');checkConflict();updateNoteCount();
-  const banner=document.getElementById('editBanner');
   document.getElementById('editBannerName').textContent=c.name;
-  banner.classList.remove('hidden');
-  render();
+  document.getElementById('editBanner').classList.remove('hidden');
+  const nc=document.getElementById('card-'+id);if(nc)nc.classList.add('editing');
   document.querySelector('.sidebar').scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -1101,7 +1124,7 @@ function restoreTrash(){
 
 /* ── save / processSubmit ── */
 async function save(){
-  updateCache();render();updateNotifBadge();checkTodayNotify();checkBackupStatus();
+  updateCache();render();updateNotifBadge();checkBackupStatus();
   await DB.saveAll(contacts);syncToCloud(true);
 }
 function processSubmit(){
@@ -1200,7 +1223,7 @@ function checkBackupStatus(){
 
 /* ── 搜尋 ── */
 document.getElementById('search').addEventListener('input',()=>{
-  clearTimeout(searchTimer);searchTimer=setTimeout(()=>{currentPage=1;render();},120);
+  clearTimeout(searchTimer);searchTimer=setTimeout(()=>{currentPage=1;render();},200);
 });
 document.getElementById('search').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();clearTimeout(searchTimer);currentPage=1;render();}});
 function clearSearch(){document.getElementById('search').value='';currentPage=1;render();}
@@ -1215,42 +1238,57 @@ document.getElementById('tabContainer').onclick=e=>{
 /* ── Excel 匯入 ── */
 document.getElementById('fileInput').onchange=e=>{
   const file=e.target.files[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=evt=>{
-    try{
-      const wb=XLSX.read(new Uint8Array(evt.target.result),{type:'array',cellDates:true});
-      const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-      rows.forEach(row=>{
-        const n={
-          id:'K-'+Math.random().toString(16).slice(2,10),create_date:new Date().toISOString(),update_ts:Date.now(),
-          name:(row['聯絡人']||'未知名').toString(),email:(row['mail']||'').toString().trim(),
-          company:(row['公司']||'').toString().trim(),tag:row['分類']||row['標籤']||'A有希望',
-          demo:parseDate(row['初次DEMO']),last:parseDate(row['上次聯繫']),next:parseDate(row['再訪時間']),
-          ragic_url:(row['ragic']||'').toString(),note:(row['記事']||'').toString()
-        };
-        const idx=contacts.findIndex(c=>c.name===n.name&&c.company===n.company);
-        if(idx>=0)Object.assign(contacts[idx],n);else contacts.push(n);
-      });
-      isDirty=true;save();showToast('✅ Excel 匯入成功');
-    }catch(err){showToast('❌ 匯入失敗：'+err.message);}
-  };
-  reader.readAsArrayBuffer(file);
+  showToast('⏳ 載入中...');
+  loadXLSX().then(()=>{
+    const reader=new FileReader();
+    reader.onload=evt=>{
+      try{
+        const wb=XLSX.read(new Uint8Array(evt.target.result),{type:'array',cellDates:true});
+        const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+        rows.forEach(row=>{
+          const n={
+            id:'K-'+Math.random().toString(16).slice(2,10),create_date:new Date().toISOString(),update_ts:Date.now(),
+            name:(row['聯絡人']||'未知名').toString(),email:(row['mail']||'').toString().trim(),
+            company:(row['公司']||'').toString().trim(),tag:row['分類']||row['標籤']||'A有希望',
+            demo:parseDate(row['初次DEMO']),last:parseDate(row['上次聯繫']),next:parseDate(row['再訪時間']),
+            ragic_url:(row['ragic']||'').toString(),note:(row['記事']||'').toString()
+          };
+          const idx=contacts.findIndex(c=>c.name===n.name&&c.company===n.company);
+          if(idx>=0)Object.assign(contacts[idx],n);else contacts.push(n);
+        });
+        isDirty=true;save();showToast('✅ Excel 匯入成功');
+      }catch(err){showToast('❌ 匯入失敗：'+err.message);}
+    };
+    reader.readAsArrayBuffer(file);
+  }).catch(err=>showToast('❌ '+err.message));
 };
 
 /* ── Excel 匯出 ── */
 document.getElementById('exportBtn').onclick=()=>{
-  const data=contacts.map(c=>({'聯絡人':c.name,'公司':c.company,'mail':c.email,'分類':c.tag,'初次DEMO':c.demo,'上次聯繫':c.last,'再訪時間':c.next,'ragic':c.ragic_url,'記事':c.note}));
-  const ws=XLSX.utils.json_to_sheet(data);const wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,ws,'Ken_CRM');
-  XLSX.writeFile(wb,`CRM_${myUserId}_${Date.now()}.xlsx`);
-  localStorage.setItem(CFG.EX_TS_KEY,Date.now());checkBackupStatus();
+  showToast('⏳ 匯出中...');
+  loadXLSX().then(()=>{
+    const data=contacts.map(c=>({'聯絡人':c.name,'公司':c.company,'mail':c.email,'分類':c.tag,'初次DEMO':c.demo,'上次聯繫':c.last,'再訪時間':c.next,'ragic':c.ragic_url,'記事':c.note}));
+    const ws=XLSX.utils.json_to_sheet(data);const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,'Ken_CRM');
+    XLSX.writeFile(wb,`CRM_${myUserId}_${Date.now()}.xlsx`);
+    localStorage.setItem(CFG.EX_TS_KEY,Date.now());checkBackupStatus();
+    showToast('✅ Excel 匯出完成');
+  }).catch(err=>showToast('❌ '+err.message));
 };
 
 /* ── beforeunload ── */
-window.addEventListener('beforeunload',e=>{if(isDirty){syncToCloud();e.preventDefault();e.returnValue='';}});
+window.addEventListener('beforeunload',e=>{
+  if(!isDirty)return;
+  if(navigator.sendBeacon){
+    navigator.sendBeacon(CFG.GAS,JSON.stringify({action:'save',token:myToken,data:contacts}));
+  }else{syncToCloud();e.preventDefault();e.returnValue='';}
+});
 
 /* ── 啟動 ── */
-(async()=>{if(myToken)loadInitialData();checkBackupStatus();setInterval(()=>syncToCloud(true),CFG.SYNC_INTERVAL);})();
+(async()=>{
+  if('serviceWorker' in navigator)navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
+  if(myToken)loadInitialData();checkBackupStatus();setInterval(()=>syncToCloud(true),CFG.SYNC_INTERVAL);
+})();
 </script>
 </body>
 </html>
