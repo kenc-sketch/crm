@@ -1,15 +1,14 @@
 {
-  "name": "Ken CRM | 智慧銷售管家",
-  "short_name": "KenCRM",
-  "description": "Ken的智慧銷售管家，隨時掌握客戶聯繫進度",
-  "start_url": "index.html",
+  "name": "Ken的CRM 智慧銷售管家",
+  "short_name": "Ken CRM",
+  "description": "個人化客戶關係管理系統",
+  "start_url": "./index.html",
   "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#F8F9FA",
-  "theme_color": "#D2691E",
+  "background_color": "#F2F4F7",
+  "theme_color": "#C85A1A",
   "icons": [
     {
-      "src": "icon.png",
+      "src": "https://cdn-icons-png.flaticon.com/512/1067/1067357.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
