@@ -1028,8 +1028,8 @@ function render(isAppend=false){
             📅 <span class="date-chip ${chipCls}">${c.next||'未定'}${dayLbl?' · '+dayLbl:''}</span>
             <span class="card-quick">
               <span class="qd" onclick="event.stopPropagation();quickUpdateNextDate('${c.id}',1)">+1</span>
-              <span class="qd" onclick="event.stopPropagation();quickUpdateNextDate('${c.id}',3)">+3</span>
               <span class="qd" onclick="event.stopPropagation();quickUpdateNextDate('${c.id}',7)">+7</span>
+              <span class="qd" onclick="event.stopPropagation();quickUpdateNextDate('${c.id}',30)">+30</span>
             </span>
           </div>
         </div>
@@ -1097,8 +1097,8 @@ function restoreTrash(){
 
 /* ── save / processSubmit ── */
 async function save(){
-  await DB.saveAll(contacts);updateCache();render();syncToCloud(true);
-  updateNotifBadge();checkTodayNotify();checkBackupStatus();
+  updateCache();render();updateNotifBadge();checkTodayNotify();checkBackupStatus();
+  await DB.saveAll(contacts);syncToCloud(true);
 }
 function processSubmit(){
   const nameVal=document.getElementById('f_name').value.trim();
