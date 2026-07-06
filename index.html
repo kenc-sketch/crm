@@ -396,10 +396,10 @@ mark.kw-hl{background:#FEF08A;color:inherit;border-radius:2px;padding:0 1px;}
 /* #16 今日聯繫按鈕 */
 .ca-today{background:#FEF9C3;color:#92400E;}
 
-/* #23 週/月統計 */
+/* #23 週/月統計（獨立第二行）*/
 .stat-card.s-activity::before{background:linear-gradient(90deg,var(--purple),#A78BFA);}
 .stat-card.s-activity .s-num{color:var(--purple);}
-.stats-bar{grid-template-columns:repeat(7,1fr)!important;}
+.stats-bar2{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px;margin-top:-6px;}
 
 /* #24 Tag 分布圖 */
 .tag-chart{background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius-lg);padding:12px 14px;margin-bottom:12px;box-shadow:var(--shadow-xs);}
@@ -615,13 +615,16 @@ mark.kw-hl{background:#FEF08A;color:inherit;border-radius:2px;padding:0 1px;}
         <span class="s-num" id="stat-week">0</span>
         <span class="s-label">本週 ↗</span>
       </div>
-      <div class="stat-card s-activity" title="本週已聯繫（有上次聯繫日）">
+    </div>
+    <!-- #23 週/月活動第二行 -->
+    <div class="stats-bar2">
+      <div class="stat-card s-activity" title="本週已聯繫（有上次聯繫日期）">
         <span class="s-num" id="stat-week-contact">0</span>
-        <span class="s-label">週聯繫</span>
+        <span class="s-label">週聯繫次數</span>
       </div>
       <div class="stat-card s-activity" title="本月初次DEMO數">
         <span class="s-num" id="stat-month-demo">0</span>
-        <span class="s-label">月DEMO</span>
+        <span class="s-label">本月 DEMO</span>
       </div>
     </div>
 
