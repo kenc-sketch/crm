@@ -458,6 +458,7 @@ mark.kw-hl{background:#FEF08A;color:inherit;border-radius:2px;padding:0 1px;}
   <div class="header-right">
     <button class="hbtn primary" onclick="syncToCloud()">☁️ 同步</button>
     <button class="hbtn" onclick="syncAllRagic()" title="批次刷新所有 Ragic 連結">🔄 全部刷新</button>
+    <button class="hbtn" onclick="openBackupPanel()" title="備份與還原">🗂️ 備份</button>
     <div class="header-divider"></div>
     <button class="hbtn" onclick="updateRagicKey()" title="更換 Ragic 金鑰">🔑 金鑰</button>
     <button class="hbtn" onclick="document.getElementById('fileInput').click()" title="匯入 Excel">📥 匯入</button>
@@ -1546,6 +1547,105 @@ window.addEventListener('beforeunload',e=>{
   if('serviceWorker' in navigator)navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
   if(myToken)loadInitialData();checkBackupStatus();setInterval(()=>syncToCloud(true),CFG.SYNC_INTERVAL);
 })();
+
+/* ══════════════════════════════════════════════════════
+   備份管理面板
+══════════════════════════════════════════════════════ */
+async function openBackupPanel(){
+  const overlay=document.getElementById('backupOverlay');
+  const body=document.getElementById('backupBody');
+  overlay.style.display='flex';
+  body.innerHTML='<p style="color:#888;text-align:center">讀取備份資訊中…</p>';
+  try{
+    const r=await fetchGAS({action:'listBackups',token:myToken});
+    if(r.error){body.innerHTML=`<p style="color:red">${r.error}</p>`;return;}
+    let html='';
+
+    // 快速備份 Slot
+    html+='<h3 style="margin:0 0 8px;color:#2C3E50;font-size:.95em">⚡ 快速備份（每 '+CFG.SLOT_EVERY_N+' 次存檔循環一次）</h3>';
+    html+='<table style="width:100%;border-collapse:collapse;font-size:.85em;margin-bottom:16px">';
+    html+='<tr style="background:#f0f0f0"><th style="padding:6px;text-align:left">編號</th><th>存檔時間</th><th>筆數</th><th></th></tr>';
+    (r.slots||[]).forEach(s=>{
+      const label=s.savedAt?_fmtDt(s.savedAt):'（尚無備份）';
+      html+=`<tr style="border-bottom:1px solid #eee">
+        <td style="padding:6px">Slot ${s.slot}${s.current?' <span style="font-size:.75em;color:#e67e22">●最新</span>':''}</td>
+        <td style="padding:6px;color:#555">${label}</td>
+        <td style="padding:6px;text-align:center">${s.count||'-'}</td>
+        <td style="padding:6px;text-align:right">${s.savedAt?`<button onclick="restoreSlot(${s.slot})" style="background:#D2691E;color:white;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.8em">還原</button>`:''}
+        </td></tr>`;
+    });
+    html+='</table>';
+
+    // 每日快照
+    html+='<h3 style="margin:0 0 8px;color:#2C3E50;font-size:.95em">📅 每日快照（保留 7 天，每天第一次存檔自動建立）</h3>';
+    if(!r.snaps||r.snaps.length===0){
+      html+='<p style="color:#888;font-size:.85em">尚無每日快照（明天第一次存檔後即會建立）</p>';
+    }else{
+      html+='<table style="width:100%;border-collapse:collapse;font-size:.85em">';
+      html+='<tr style="background:#f0f0f0"><th style="padding:6px;text-align:left">日期</th><th>建立時間</th><th>筆數</th><th></th></tr>';
+      r.snaps.forEach(s=>{
+        html+=`<tr style="border-bottom:1px solid #eee">
+          <td style="padding:6px">${s.date}</td>
+          <td style="padding:6px;color:#555">${s.savedAt?_fmtDt(s.savedAt):'-'}</td>
+          <td style="padding:6px;text-align:center">${s.count||'-'}</td>
+          <td style="padding:6px;text-align:right">
+            <button onclick="restoreSnap('${s.date}')" style="background:#2C3E50;color:white;border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:.8em">還原</button>
+          </td></tr>`;
+      });
+      html+='</table>';
+    }
+    body.innerHTML=html;
+  }catch(ex){body.innerHTML=`<p style="color:red">讀取失敗：${ex.message}</p>`;}
+}
+
+function _fmtDt(iso){
+  if(!iso)return'-';
+  try{
+    const d=new Date(iso);
+    const pad=n=>String(n).padStart(2,'0');
+    return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }catch{return iso;}
+}
+
+async function restoreSlot(slot){
+  if(!confirm(`確定要還原 Slot ${slot} 的備份？\n目前資料將被覆蓋，建議先同步一次。`))return;
+  setSS('⏳ 還原中…');prog(true);
+  try{
+    const r=await fetchGAS({action:'loadSlot',token:myToken,slot});
+    if(r.error){showToast('❌ '+r.error);return;}
+    let data=r.data||[];
+    // 舊格式 slot 可能直接是陣列（相容處理）
+    if(!Array.isArray(data)&&data.data)data=data.data;
+    contacts=data;isDirty=true;
+    render();await save();
+    document.getElementById('backupOverlay').style.display='none';
+    showToast(`✅ 已還原 Slot ${slot}`);
+  }catch(ex){showToast('❌ 還原失敗：'+ex.message);}
+  finally{prog(false);}
+}
+
+async function restoreSnap(date){
+  if(!confirm(`確定要還原 ${date} 的快照？\n目前資料將被覆蓋，建議先同步一次。`))return;
+  setSS('⏳ 還原中…');prog(true);
+  try{
+    const r=await fetchGAS({action:'loadSnap',token:myToken,date});
+    if(r.error){showToast('❌ '+r.error);return;}
+    contacts=r.data||[];isDirty=true;
+    render();await save();
+    document.getElementById('backupOverlay').style.display='none';
+    showToast(`✅ 已還原 ${date} 快照`);
+  }catch(ex){showToast('❌ 還原失敗：'+ex.message);}
+  finally{prog(false);}
+}
 </script>
+
+<!-- 備份管理覆蓋層 -->
+<div id="backupOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9000;align-items:center;justify-content:center">
+  <div style="background:white;border-radius:14px;padding:24px;width:min(600px,94vw);max-height:80vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.25);position:relative">
+    <button onclick="document.getElementById('backupOverlay').style.display='none'" style="position:absolute;top:12px;right:14px;background:none;border:none;font-size:1.3em;cursor:pointer;color:#888">✕</button>
+    <h2 style="margin:0 0 16px;color:#D2691E;font-size:1.05em">🗂️ 備份管理</h2>
+    <div id="backupBody"></div>
+  </div>
+</div>
 </body>
 </html>
