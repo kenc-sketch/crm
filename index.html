@@ -373,6 +373,42 @@ textarea{resize:vertical;min-height:80px;}
 
 /* ─── 通用 ─── */
 .sep{height:1px;background:var(--border-soft);margin:10px 0;}
+
+/* #14 關鍵字高亮 */
+mark.kw-hl{background:#FEF08A;color:inherit;border-radius:2px;padding:0 1px;}
+
+/* #19 快速記事 */
+.quick-note-bar{margin:8px -2px 0;padding-top:8px;border-top:1px solid var(--border-soft);}
+.quick-note-input{width:100%;padding:5px 10px;font-size:.75em;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);color:var(--txt);font-family:inherit;transition:border-color var(--trans);}
+.quick-note-input:focus{outline:none;border-color:var(--accent);background:white;}
+
+/* #17 批次選取 */
+.batch-bar{display:none;align-items:center;gap:8px;padding:8px 12px;background:var(--accent-light);border:1px solid rgba(200,90,26,.25);border-radius:var(--radius);margin-bottom:10px;flex-wrap:wrap;}
+.batch-bar select{padding:4px 8px;font-size:.78em;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;}
+.batch-bar button{padding:4px 12px;font-size:.78em;border:none;border-radius:var(--radius-sm);cursor:pointer;font-weight:700;font-family:inherit;}
+.batch-bar .btn-apply{background:var(--accent);color:white;}
+.batch-bar .btn-cancel{background:var(--surface);color:var(--txt2);border:1px solid var(--border);}
+#batchCount{font-size:.8em;font-weight:700;color:var(--accent);}
+.contact-card.batch-sel{border-left-color:var(--accent);box-shadow:0 0 0 2px rgba(200,90,26,.3);}
+.batch-toggle-btn{padding:4px 10px;font-size:.72em;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--txt2);cursor:pointer;font-weight:700;font-family:inherit;transition:var(--trans);}
+.batch-toggle-btn:hover{background:var(--bg);}
+
+/* #16 今日聯繫按鈕 */
+.ca-today{background:#FEF9C3;color:#92400E;}
+
+/* #23 週/月統計 */
+.stat-card.s-activity::before{background:linear-gradient(90deg,var(--purple),#A78BFA);}
+.stat-card.s-activity .s-num{color:var(--purple);}
+.stats-bar{grid-template-columns:repeat(7,1fr)!important;}
+
+/* #24 Tag 分布圖 */
+.tag-chart{background:var(--surface);border:1px solid var(--border-soft);border-radius:var(--radius-lg);padding:12px 14px;margin-bottom:12px;box-shadow:var(--shadow-xs);}
+.tag-chart-title{font-size:.72em;font-weight:700;color:var(--txt3);letter-spacing:.04em;text-transform:uppercase;margin-bottom:10px;}
+.tag-chart-row{display:flex;align-items:center;gap:7px;margin-bottom:5px;font-size:.73em;}
+.tag-chart-lbl{width:72px;color:var(--txt2);font-weight:600;flex-shrink:0;text-align:right;}
+.tag-chart-bar-wrap{flex:1;background:var(--bg);border-radius:4px;height:10px;overflow:hidden;}
+.tag-chart-bar{height:100%;border-radius:4px;transition:width .4s ease;}
+.tag-chart-num{width:26px;color:var(--txt3);font-weight:700;text-align:right;flex-shrink:0;}
 </style>
 </head>
 <body>
@@ -579,6 +615,14 @@ textarea{resize:vertical;min-height:80px;}
         <span class="s-num" id="stat-week">0</span>
         <span class="s-label">本週 ↗</span>
       </div>
+      <div class="stat-card s-activity" title="本週已聯繫（有上次聯繫日）">
+        <span class="s-num" id="stat-week-contact">0</span>
+        <span class="s-label">週聯繫</span>
+      </div>
+      <div class="stat-card s-activity" title="本月初次DEMO數">
+        <span class="s-num" id="stat-month-demo">0</span>
+        <span class="s-label">月DEMO</span>
+      </div>
     </div>
 
     <!-- 篩選 + 搜尋 整合區 -->
@@ -594,6 +638,7 @@ textarea{resize:vertical;min-height:80px;}
         <button class="tab-btn" data-filter="D購買別家">D<span class="tab-count" id="tc-D購買別家"></span></button>
         <button class="tab-btn" data-filter="E暫無需求">E<span class="tab-count" id="tc-E暫無需求"></span></button>
         <button class="tab-btn" data-filter="Z電聯寄件">Z<span class="tab-count" id="tc-Z電聯寄件"></span></button>
+        <button class="tab-btn" data-filter="today">📌 今日<span class="tab-count" id="tc-today"></span></button>
       </div>
       <div class="search-row">
         <div class="search-wrap">
@@ -607,6 +652,7 @@ textarea{resize:vertical;min-height:80px;}
     <!-- 排序列 -->
     <div class="sort-row">
       <span class="sort-label">排序</span>
+      <button class="batch-toggle-btn" onclick="toggleSelectMode()" title="批次選取並改分類">☑ 批次</button>
       <select id="sortField" onchange="resetPageAndRender()">
         <option value="next">再聯繫日</option>
         <option value="demo">DEMO 日</option>
@@ -621,6 +667,27 @@ textarea{resize:vertical;min-height:80px;}
       </select>
       <span id="filteredCount"></span>
     </div>
+
+    <!-- #17 批次操作列（預設隱藏） -->
+    <div id="batchBar" class="batch-bar">
+      <span id="batchCount"></span>
+      <select id="batchTagSel">
+        <option value="">選擇分類...</option>
+        <option value="SS簽約客戶">✅ SS簽約客戶</option>
+        <option value="S續約客戶">🔄 S續約客戶</option>
+        <option value="A有希望">🔵 A有希望</option>
+        <option value="B需時間">🟣 B需時間</option>
+        <option value="C老闆不要">🔴 C老闆不要</option>
+        <option value="D購買別家">🟠 D購買別家</option>
+        <option value="E暫無需求">⚪ E暫無需求</option>
+        <option value="Z電聯寄件">📮 Z電聯寄件</option>
+      </select>
+      <button class="btn-apply" onclick="applyBatchTag(document.getElementById('batchTagSel').value)">套用分類</button>
+      <button class="btn-cancel" onclick="toggleSelectMode()">取消</button>
+    </div>
+
+    <!-- #24 Tag 分布圖（預設隱藏，updateStats 時更新） -->
+    <div id="tagChart" class="tag-chart" style="display:none;"></div>
 
     <div id="contactList"></div>
     <button id="loadMoreBtn" class="load-more-btn" style="display:none;" onclick="loadMore()">載入更多聯絡人...</button>
@@ -689,6 +756,12 @@ const CFG={
 let contacts=[],searchCache=[],isSyncing=false,isDirty=false;
 let currentPage=1,currentFilter='all',searchTimer=null,_lastSyncedUrl='';
 let _xlsxLoading=false;
+let _ragicSyncing=false;
+let selectMode=false;
+const selectedIds=new Set();
+function _localDate(d=new Date()){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+let _todayStr=_localDate();
+setInterval(()=>{_todayStr=_localDate();},60000);
 function loadXLSX(){
   return new Promise((res,rej)=>{
     if(typeof XLSX!=='undefined'){res();return;}
@@ -699,6 +772,16 @@ function loadXLSX(){
     s.onload=()=>res();s.onerror=()=>rej(new Error('SheetJS 載入失敗，請確認網路連線'));
     document.head.appendChild(s);
   });
+}
+
+/* ── #8 統一 GAS fetch（AbortController 8s 超時）── */
+async function fetchGAS(body,ms=8000){
+  const ctrl=new AbortController();
+  const tid=setTimeout(()=>ctrl.abort(),ms);
+  try{
+    return await fetch(CFG.GAS,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify(body),signal:ctrl.signal});
+  }finally{clearTimeout(tid);}
 }
 
 /* ── DB (連線快取) ── */
@@ -771,14 +854,16 @@ async function updateRagicKey(){
   finally{btn.innerHTML=orig;btn.disabled=false;}
 }
 
-/* ── 資料載入 ── */
+/* ── 資料載入（#13 快取優先 + #20 重複偵測）── */
 async function loadInitialData(){
   if(!myToken){document.getElementById('authOverlay').style.display='flex';return;}
   document.getElementById('authOverlay').style.display='none';
+  // #13 先顯示 IndexedDB 快取，不讓畫面空白等待雲端
+  const cached=await DB.getAll();
+  if(cached&&cached.length){contacts=cached;updateCache();render();updateNotifBadge();}
   setSS('⏳ 載入中...');prog(true);
   try{
-    const res=await fetch(CFG.GAS,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body:JSON.stringify({action:'load',token:myToken})});
+    const res=await fetchGAS({action:'load',token:myToken});
     const cloud=await res.json();
     if(Array.isArray(cloud)){contacts=cloud;await DB.saveAll(contacts);setSS(`✅ ${myUserId}`);}
     else if(cloud&&cloud.error&&(cloud.error.includes('驗證失敗')||cloud.error.includes('重新登入'))){
@@ -788,21 +873,30 @@ async function loadInitialData(){
       document.getElementById('authErr').style.display='block';
       return;
     }else throw new Error('格式異常');
-  }catch(e){setSS('離線模式');contacts=await DB.getAll();}
+  }catch(e){setSS('離線模式');if(!contacts.length)contacts=await DB.getAll();}
   finally{prog(false);}
+  // #20 重複偵測（名稱+公司 或 Email 重複則警告）
+  const seenN=new Map(),seenE=new Set(),dupNames=[];
+  contacts.forEach(c=>{
+    const k=((c.name||'')+'|'+(c.company||'')).toLowerCase().trim();
+    if(k!=='|'){if(seenN.has(k))dupNames.push(c.name);else seenN.set(k,1);}
+    if(c.email){const e=c.email.toLowerCase().trim();if(seenE.has(e))dupNames.push(c.name);else seenE.add(e);}
+  });
+  if(dupNames.length)showToast(`⚠️ 疑似重複：${dupNames.slice(0,2).join('、')}${dupNames.length>2?'…':''}（請確認）`);
   updateCache();render();updateNotifBadge();checkTodayNotify();
 }
 
-/* ── Ragic 同步 ── */
+/* ── Ragic 同步（#10 防重複點擊）── */
 async function handleUrlSync(isRefresh=false){
+  if(_ragicSyncing){showToast('⏳ Ragic 同步中，請稍候');return;}
   const url=document.getElementById('f_ragic_url').value.trim();
   const btn=document.getElementById('syncBtn');
   if(!url||!url.includes('ragic.com')){showToast('⚠️ 請貼上正確的 Ragic 網址');return;}
+  _ragicSyncing=true;
   const orig=btn.innerHTML;btn.disabled=true;btn.innerHTML='⏳';btn.style.opacity='.6';
   setSS('⏳ Ragic 通訊中...');prog(true);
   try{
-    const res=await fetch(CFG.GAS,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body:JSON.stringify({action:'fetchRagic',token:myToken,ragicUrl:url})});
+    const res=await fetchGAS({action:'fetchRagic',token:myToken,ragicUrl:url},12000);
     const d=await res.json();if(d.error)throw new Error(d.error);
     if(!d.name&&!d.company&&!d.demo&&!d.last){
       throw new Error('Ragic 欄位對應失敗，請確認網址是否正確');
@@ -822,9 +916,9 @@ async function handleUrlSync(isRefresh=false){
       showToast('✅ Ragic 資料已填入');
     }
     _lastSyncedUrl=url;
-  setRH('ok',isRefresh?'✅ 已從 Ragic 刷新':'✅ 資料同步完成');setSS('✅ 同步成功');
+    setRH('ok',isRefresh?'✅ 已從 Ragic 刷新':'✅ 資料同步完成');setSS('✅ 同步成功');
   }catch(e){showToast('❌ '+e.message);setRH('err','❌ '+e.message);setSS('⚠️ 同步失敗');}
-  finally{btn.disabled=false;btn.innerHTML=orig;btn.style.opacity='1';prog(false);}
+  finally{_ragicSyncing=false;btn.disabled=false;btn.innerHTML=orig;btn.style.opacity='1';prog(false);}
 }
 async function refreshRagicForCard(id){
   const c=contacts.find(x=>x.id===id);
@@ -834,17 +928,20 @@ async function refreshRagicForCard(id){
 }
 function setRH(t,m){const el=document.getElementById('ragicHint');el.textContent=m;el.className='ragic-hint '+(t||'');}
 
-/* ── 雲端同步 ── */
+/* ── 雲端同步（#12 顯示 savedAt）── */
 async function syncToCloud(isAuto=false){
   if(isSyncing||!myToken)return;if(isAuto&&!isDirty)return;
   if(!navigator.onLine){setSS('📵 離線中');return;}
   isSyncing=true;setSS(isAuto?'⏳ 自動存檔...':'☁️ 同步中...');prog(true);
   try{
-    const res=await fetch(CFG.GAS,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body:JSON.stringify({action:'save',token:myToken,data:contacts})});
+    const res=await fetchGAS({action:'save',token:myToken,data:contacts});
     const result=await res.json();
     if(result&&result.error)throw new Error(result.error);
-    setSS(`✅ ${new Date().toLocaleTimeString()}`);isDirty=false;
+    const ts=result&&result.savedAt
+      ?new Date(result.savedAt).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'})
+      :new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
+    setSS(result&&result.unchanged?`✅ ${ts}（無變更）`:`✅ ${ts}`);
+    isDirty=false;
   }catch(e){setSS('⚠️ 同步失敗');}
   finally{isSyncing=false;prog(false);}
 }
@@ -858,18 +955,15 @@ function parseDate(v){
   if(/^\d{4}-\d{1,2}-\d{1,2}/.test(s)){const p=s.split(' ')[0].split('-');return`${p[0]}-${p[1].padStart(2,'0')}-${p[2].padStart(2,'0')}`;}
   const d=new Date(s);return isNaN(d.getTime())?'':d.toISOString().split('T')[0];
 }
+// #9 用快取的 _todayStr，避免每張卡片重建 Date 物件
 function getDayLabel(ds){
   if(!ds)return'';
-  const now=new Date();now.setHours(0,0,0,0);
-  const t=new Date(ds+'T00:00:00');t.setHours(0,0,0,0);
-  const diff=Math.round((t-now)/86400000);
+  const diff=Math.round((new Date(ds+'T00:00:00')-new Date(_todayStr+'T00:00:00'))/86400000);
   if(diff===0)return'今天';if(diff<0)return`逾期${Math.abs(diff)}天`;return`${diff}天後`;
 }
 function getDayChipClass(ds){
   if(!ds)return'';
-  const now=new Date();now.setHours(0,0,0,0);
-  const t=new Date(ds+'T00:00:00');t.setHours(0,0,0,0);
-  const diff=Math.round((t-now)/86400000);
+  const diff=Math.round((new Date(ds+'T00:00:00')-new Date(_todayStr+'T00:00:00'))/86400000);
   if(diff<0)return'overdue';if(diff===0)return'today-chip';if(diff<=3)return'soon-chip';return'';
 }
 function getGCal(c){
@@ -939,7 +1033,7 @@ function renderCal(){
   CAL_W.forEach(d=>{const el=document.createElement('div');el.className='cal-dow';el.textContent=d;grid.appendChild(el);});
   const first=new Date(calYear,calMonth,1).getDay();
   const days=new Date(calYear,calMonth+1,0).getDate();
-  const todayStr=new Date().toISOString().split('T')[0];
+  const todayStr=_todayStr;
   const selStr=calTarget?document.getElementById(CAL_F[calTarget]).value:'';
   for(let i=0;i<first;i++){const e=document.createElement('div');e.className='cal-day empty';grid.appendChild(e);}
   for(let d=1;d<=days;d++){
@@ -974,13 +1068,15 @@ function updateCache(){
 
 /* ── Tab 計數 ── */
 function updateTabCounts(filtered){
-  const today=new Date().toISOString().split('T')[0];
+  const today=_todayStr;
   const kw=document.getElementById('search').value.toLowerCase().trim().split(/\s+/);
   const km=(c,i)=>kw[0]===''||kw.every(k=>searchCache[i]&&searchCache[i].str.includes(k));
   const all=contacts.filter((c,i)=>km(c,i));
   const fmt=n=>n?` (${n})`:'';
   document.getElementById('tc-all').textContent=fmt(all.length);
   document.getElementById('tc-due').textContent=fmt(all.filter(c=>c.next&&c.next<=today).length);
+  const elToday=document.getElementById('tc-today');
+  if(elToday)elToday.textContent=fmt(all.filter(c=>c.next===today).length);
   ['SS簽約客戶','S續約客戶','A有希望','B需時間','C老闆不要','D購買別家','E暫無需求','Z電聯寄件'].forEach(tag=>{
     const el=document.getElementById('tc-'+tag);
     if(el)el.textContent=fmt(all.filter(c=>c.tag===tag).length);
@@ -995,7 +1091,7 @@ function updateTabCounts(filtered){
 /* ── render (DocumentFragment) ── */
 function render(isAppend=false){
   const container=document.getElementById('contactList');
-  const today=new Date().toISOString().split('T')[0];
+  const today=_todayStr;
   const editId=document.getElementById('f_id').value;
   if(!isAppend)container.textContent='';
 
@@ -1004,6 +1100,7 @@ function render(isAppend=false){
     const m=kw[0]===''||kw.every(k=>searchCache[i]&&searchCache[i].str.includes(k));
     if(!m)return false;
     if(currentFilter==='due')return c.next&&c.next<=today;
+    if(currentFilter==='today')return c.next===today;
     return currentFilter==='all'||c.tag===currentFilter;
   });
   const sf=document.getElementById('sortField').value;
@@ -1046,11 +1143,11 @@ function render(isAppend=false){
     div.innerHTML=`
       <div class="card-main" onclick="edit('${c.id}')">
         <div class="card-row1">
-          <span class="card-name">${escHtml(c.name)}</span>
+          <span class="card-name">${highlightKw(c.name,kw)}</span>
           <span class="card-tag-badge">${escHtml(c.tag)}</span>
           <span class="card-stay">追蹤${stay}天</span>
         </div>
-        <div class="card-company">${escHtml(c.company||'個人')}</div>
+        <div class="card-company">${highlightKw(c.company||'個人',kw)}</div>
         <div class="card-dates-row">
           <div class="card-date-item">🆕 <span>${c.demo||'--'}</span></div>
           <div class="card-date-item">
@@ -1075,8 +1172,14 @@ function render(isAppend=false){
     if(c.ragic_url)actions.innerHTML+=`<a href="${c.ragic_url}" target="_blank" class="ca ca-ragic">🚀 Ragic</a>`;
     if(gCal)actions.innerHTML+=`<a href="${gCal}" target="_blank" class="ca ca-cal">📅 行事曆</a>`;
     if(c.ragic_url)actions.innerHTML+=`<button class="ca ca-refresh" onclick="event.stopPropagation();refreshRagicForCard('${c.id}')">🔄 刷新</button>`;
+    // #16 今日聯繫快捷
+    actions.innerHTML+=`<button class="ca ca-today" onclick="event.stopPropagation();markContactedToday('${c.id}')" title="記錄今日為上次聯繫日">🤝 今日</button>`;
     if(c.tag==='Z電聯寄件')actions.innerHTML+=`<button class="ca ca-copy" onclick="event.stopPropagation();copyShippingInfo('${c.id}')">📋 複製</button>`;
     div.querySelector('.card-main').appendChild(actions);
+    // #19 快速記事輸入欄
+    const qn=document.createElement('div');qn.className='quick-note-bar';
+    qn.innerHTML=`<input type="text" class="quick-note-input" placeholder="📝 快速記事（Enter 送出）..." onclick="event.stopPropagation()" onkeydown="if(event.key==='Enter'&&this.value.trim()){event.stopPropagation();quickNote('${c.id}',this);}">`;
+    div.appendChild(qn);
     frag.appendChild(div);
   });
   container.appendChild(frag);
@@ -1085,8 +1188,16 @@ function render(isAppend=false){
 }
 function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
-/* ── edit ── */
+/* ── edit（#17 批次選取模式）── */
 function edit(id){
+  // 批次選取模式：點卡片 = 勾選/取消
+  if(selectMode){
+    const card=document.getElementById('card-'+id);
+    if(!card)return;
+    if(selectedIds.has(id)){selectedIds.delete(id);card.classList.remove('batch-sel');}
+    else{selectedIds.add(id);card.classList.add('batch-sel');}
+    updateBatchBar();return;
+  }
   const prev=document.getElementById('f_id').value;
   if(prev){const pc=document.getElementById('card-'+prev);if(pc)pc.classList.remove('editing');}
   const c=contacts.find(x=>x.id===id);if(!c)return;
@@ -1133,6 +1244,9 @@ async function save(){
 function processSubmit(){
   const nameVal=document.getElementById('f_name').value.trim();
   if(!nameVal){showToast('⚠️ 請填寫聯絡人名稱');return false;}
+  // #15 Email 格式驗證
+  const emailVal=document.getElementById('f_email').value.trim();
+  if(emailVal&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)){showToast('⚠️ Email 格式不正確');return false;}
   const tagVal=document.getElementById('f_tag').value;
   const id=document.getElementById('f_id').value||'K-'+Date.now();
   const createDate=document.getElementById('f_create_date').value||new Date().toISOString();
@@ -1168,16 +1282,44 @@ function resetForm(){
 function resetPageAndRender(){currentPage=1;render();}
 function loadMore(){currentPage++;render(true);}
 
-/* ── 統計 ── */
+/* ── 統計（#23 週/月活動 + #24 Tag 圖表）── */
 function updateStats(){
-  const today=new Date().toISOString().split('T')[0];
-  const weekLater=new Date();weekLater.setDate(weekLater.getDate()+7);
+  const today=_todayStr;
+  const weekLater=new Date(_todayStr+'T00:00:00');weekLater.setDate(weekLater.getDate()+7);
   const weekStr=weekLater.toISOString().split('T')[0];
   document.getElementById('stat-total').textContent=contacts.length;
   document.getElementById('stat-due').textContent=contacts.filter(c=>c.next&&c.next<today).length;
   document.getElementById('stat-today').textContent=contacts.filter(c=>c.next===today).length;
   document.getElementById('stat-signed').textContent=contacts.filter(c=>c.tag==='SS簽約客戶'||c.tag==='S續約客戶').length;
   document.getElementById('stat-week').textContent=contacts.filter(c=>c.next&&c.next>today&&c.next<=weekStr).length;
+  // #23 本週已聯繫（周一起算）
+  const todayD=new Date(_todayStr+'T00:00:00');const dow=todayD.getDay();
+  const monday=new Date(todayD);monday.setDate(todayD.getDate()-(dow===0?6:dow-1));
+  const mondayStr=monday.toISOString().split('T')[0];
+  const monthStart=today.substring(0,7)+'-01';
+  const elWC=document.getElementById('stat-week-contact');
+  const elMD=document.getElementById('stat-month-demo');
+  if(elWC)elWC.textContent=contacts.filter(c=>c.last&&c.last>=mondayStr).length;
+  if(elMD)elMD.textContent=contacts.filter(c=>c.demo&&c.demo>=monthStart).length;
+  renderTagChart();
+}
+
+/* #24 Tag 分布圖 */
+function renderTagChart(){
+  const el=document.getElementById('tagChart');if(!el||!contacts.length)return;
+  const TAGS=[['SS簽約客戶','#059669'],['S續約客戶','#0891B2'],['A有希望','#2563EB'],
+              ['B需時間','#7C3AED'],['C老闆不要','#DC2626'],['D購買別家','#D97706'],
+              ['E暫無需求','#9CA3AF'],['Z電聯寄件','#374151']];
+  const counts={};TAGS.forEach(([t])=>counts[t]=0);
+  contacts.forEach(c=>{if(counts[c.tag]!==undefined)counts[c.tag]++;});
+  const max=Math.max(...Object.values(counts),1);
+  el.style.display='block';
+  el.innerHTML='<div class="tag-chart-title">分類分布</div>'+
+    TAGS.map(([t,color])=>`<div class="tag-chart-row">
+      <span class="tag-chart-lbl">${t.replace('簽約客戶','').replace('續約客戶','').replace('有希望','').replace('需時間','').replace('老闆不要','').replace('購買別家','').replace('暫無需求','').replace('電聯寄件','')}</span>
+      <div class="tag-chart-bar-wrap"><div class="tag-chart-bar" style="width:${Math.round(counts[t]/max*100)}%;background:${color};"></div></div>
+      <span class="tag-chart-num">${counts[t]}</span>
+    </div>`).join('');
 }
 function showWeekAhead(){
   document.getElementById('search').value='';currentFilter='all';
@@ -1185,6 +1327,68 @@ function showWeekAhead(){
   document.querySelector('[data-filter="all"]').classList.add('active');
   document.getElementById('sortField').value='next';document.getElementById('sortOrder').value='asc';
   resetPageAndRender();showToast('📅 已切換至再聯繫日排序');
+}
+
+/* ── #14 關鍵字高亮 ── */
+function highlightKw(str,kwArr){
+  if(!str)return'';
+  let out=escHtml(str);
+  if(!kwArr||!kwArr[0])return out;
+  kwArr.forEach(k=>{
+    if(!k)return;
+    out=out.replace(new RegExp('('+k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'),'<mark class="kw-hl">$1</mark>');
+  });
+  return out;
+}
+
+/* ── #16 今日聯繫快捷 ── */
+function markContactedToday(id){
+  const idx=contacts.findIndex(c=>c.id===id);if(idx===-1)return;
+  contacts[idx].last=_todayStr;contacts[idx].update_ts=Date.now();
+  isDirty=true;save();showToast(`✅ 已記錄「${contacts[idx].name}」今日聯繫`);
+}
+
+/* ── #19 快速記事 ── */
+function quickNote(id,input){
+  const idx=contacts.findIndex(c=>c.id===id);if(idx===-1)return;
+  const txt=input.value.trim();if(!txt)return;
+  const ts=new Date().toLocaleDateString('zh-TW',{month:'2-digit',day:'2-digit'});
+  contacts[idx].note=(contacts[idx].note?contacts[idx].note+'\n':'')+`[${ts}] ${txt}`;
+  contacts[idx].update_ts=Date.now();isDirty=true;
+  input.value='';save();showToast('📝 快速記事已儲存');
+}
+
+/* ── #17 批次選取 ── */
+function toggleSelectMode(){
+  selectMode=!selectMode;selectedIds.clear();
+  const bar=document.getElementById('batchBar');
+  bar.style.display=selectMode?'flex':'none';
+  render();showToast(selectMode?'☑ 批次選取模式（點卡片選取）':'已離開選取模式');
+}
+function updateBatchBar(){
+  const el=document.getElementById('batchCount');
+  if(el)el.textContent=selectedIds.size?`已選 ${selectedIds.size} 筆`:'';
+}
+function applyBatchTag(tag){
+  if(!tag){showToast('⚠️ 請先選擇分類');return;}
+  if(!selectedIds.size){showToast('⚠️ 請先點擊卡片選取');return;}
+  if(!confirm(`確定將 ${selectedIds.size} 筆改為「${tag}」？`))return;
+  const n=selectedIds.size;
+  contacts.forEach(c=>{if(selectedIds.has(c.id)){c.tag=tag;c.update_ts=Date.now();}});
+  isDirty=true;selectedIds.clear();toggleSelectMode();showToast(`✅ 已更新 ${n} 筆分類`);
+}
+
+/* ── #21 匯出（全部或篩選）── */
+function exportToExcel(list){
+  showToast('⏳ 匯出中...');
+  loadXLSX().then(()=>{
+    const data=list.map(c=>({'聯絡人':c.name,'公司':c.company,'mail':c.email,'分類':c.tag,'初次DEMO':c.demo,'上次聯繫':c.last,'再訪時間':c.next,'ragic':c.ragic_url,'記事':c.note}));
+    const ws=XLSX.utils.json_to_sheet(data);const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,'Ken_CRM');
+    XLSX.writeFile(wb,`CRM_${myUserId}_${Date.now()}.xlsx`);
+    localStorage.setItem(CFG.EX_TS_KEY,Date.now());checkBackupStatus();
+    showToast(`✅ 已匯出 ${list.length} 筆`);
+  }).catch(err=>showToast('❌ '+err.message));
 }
 
 /* ── 複製 ── */
@@ -1196,7 +1400,7 @@ function copyShippingInfo(id){
 
 /* ── 通知 ── */
 function updateNotifBadge(){
-  const today=new Date().toISOString().split('T')[0];
+  const today=_todayStr;
   const n=contacts.filter(c=>c.next&&c.next<=today).length;
   const badge=document.getElementById('notifBadge');
   badge.textContent=n;badge.classList.toggle('show',n>0);
@@ -1204,7 +1408,7 @@ function updateNotifBadge(){
 function closeModal(){document.getElementById('actionModal').hidden=true;}
 async function checkTodayNotify(){
   if(!('Notification' in window))return;
-  const today=new Date().toISOString().split('T')[0];
+  const today=_todayStr;
   const due=contacts.filter(c=>c.next===today);
   if(due.length>0&&Notification.permission==='granted')
     due.forEach(t=>new Notification('CRM 聯繫提醒',{body:`今日需聯繫：${t.name}`,icon:'https://cdn-icons-png.flaticon.com/512/1067/1067357.png',tag:t.id}));
@@ -1267,17 +1471,30 @@ document.getElementById('fileInput').onchange=e=>{
 };
 
 /* ── Excel 匯出 ── */
+// #21 匯出：詢問全部或篩選
 document.getElementById('exportBtn').onclick=()=>{
-  showToast('⏳ 匯出中...');
-  loadXLSX().then(()=>{
-    const data=contacts.map(c=>({'聯絡人':c.name,'公司':c.company,'mail':c.email,'分類':c.tag,'初次DEMO':c.demo,'上次聯繫':c.last,'再訪時間':c.next,'ragic':c.ragic_url,'記事':c.note}));
-    const ws=XLSX.utils.json_to_sheet(data);const wb=XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb,ws,'Ken_CRM');
-    XLSX.writeFile(wb,`CRM_${myUserId}_${Date.now()}.xlsx`);
-    localStorage.setItem(CFG.EX_TS_KEY,Date.now());checkBackupStatus();
-    showToast('✅ Excel 匯出完成');
-  }).catch(err=>showToast('❌ '+err.message));
+  const kw=document.getElementById('search').value.toLowerCase().trim().split(/\s+/);
+  const hasFilter=currentFilter!=='all'||kw[0]!=='';
+  if(hasFilter&&confirm('匯出「目前篩選結果」？\n（取消 = 匯出全部）')){
+    const today=_todayStr;
+    let filtered=contacts.filter((c,i)=>{
+      const m=kw[0]===''||kw.every(k=>searchCache[i]&&searchCache[i].str.includes(k));
+      if(!m)return false;
+      if(currentFilter==='due')return c.next&&c.next<=today;
+      if(currentFilter==='today')return c.next===today;
+      return currentFilter==='all'||c.tag===currentFilter;
+    });
+    exportToExcel(filtered);
+  }else{exportToExcel(contacts);}
 };
+
+// #22 鍵盤捷徑：N=新增 /=搜尋 Esc=清除
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT')return;
+  if(e.key==='n'||e.key==='N'){e.preventDefault();resetForm();document.getElementById('f_name').focus();showToast('✏️ 新增模式（Esc 取消）');}
+  else if(e.key==='/'||e.key==='f'||e.key==='F'){e.preventDefault();document.getElementById('search').focus();}
+  else if(e.key==='Escape'){if(document.getElementById('f_id').value)resetForm();else{document.getElementById('search').value='';currentPage=1;render();}}
+});
 
 /* ── beforeunload ── */
 window.addEventListener('beforeunload',e=>{
