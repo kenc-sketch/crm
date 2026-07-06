@@ -1,4 +1,4 @@
-const CACHE = 'ken-crm-v1';
+const CACHE = 'ken-crm-v2';
 const SHELL = ['./index.html', './'];
 
 self.addEventListener('install', e => {
