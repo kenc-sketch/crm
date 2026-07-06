@@ -457,6 +457,7 @@ mark.kw-hl{background:#FEF08A;color:inherit;border-radius:2px;padding:0 1px;}
   </div>
   <div class="header-right">
     <button class="hbtn primary" onclick="syncToCloud()">☁️ 同步</button>
+    <button class="hbtn" onclick="syncAllRagic()" title="批次刷新所有 Ragic 連結">🔄 全部刷新</button>
     <div class="header-divider"></div>
     <button class="hbtn" onclick="updateRagicKey()" title="更換 Ragic 金鑰">🔑 金鑰</button>
     <button class="hbtn" onclick="document.getElementById('fileInput').click()" title="匯入 Excel">📥 匯入</button>
@@ -932,6 +933,37 @@ async function refreshRagicForCard(id){
   if(processSubmit())showToast(`✅ ${c.name} Ragic 資料已刷新`);
 }
 function setRH(t,m){const el=document.getElementById('ragicHint');el.textContent=m;el.className='ragic-hint '+(t||'');}
+async function syncAllRagic(){
+  if(_ragicSyncing){showToast('⏳ 同步中，請稍候');return;}
+  const toSync=contacts.filter(c=>c.ragic_url&&c.ragic_url.includes('ragic.com'));
+  if(!toSync.length){showToast('⚠️ 沒有聯絡人設定 Ragic 連結');return;}
+  const total=toSync.length;
+  if(!confirm(`將依序刷新 ${total} 筆有 Ragic 連結的聯絡人，確定繼續？`))return;
+  _ragicSyncing=true;let done=0,updated=0;prog(true);
+  for(const c of toSync){
+    setSS(`🔄 刷新中 ${done+1}/${total}：${c.name}`);
+    try{
+      const res=await fetchGAS({action:'fetchRagic',token:myToken,ragicUrl:c.ragic_url},10000);
+      const d=await res.json();
+      if(!d.error&&(d.name||d.company||d.demo||d.last)){
+        const idx=contacts.findIndex(x=>x.id===c.id);
+        if(idx>=0){
+          if(d.name)contacts[idx].name=d.name;
+          if(d.company)contacts[idx].company=d.company;
+          if(d.email)contacts[idx].email=d.email;
+          if(d.demo&&(!contacts[idx].demo||d.demo<contacts[idx].demo))contacts[idx].demo=d.demo;
+          if(d.last&&(!contacts[idx].last||d.last>contacts[idx].last))contacts[idx].last=d.last;
+          isDirty=true;updated++;
+        }
+      }
+    }catch(e){}
+    done++;
+  }
+  _ragicSyncing=false;updateCache();render();updateNotifBadge();updateStats();
+  if(isDirty)await syncToCloud();
+  showToast(`✅ 全部刷新完成，${updated}/${total} 筆有更新`);
+  setSS(`✅ 全部刷新完成`);prog(false);
+}
 
 /* ── 雲端同步（#12 顯示 savedAt）── */
 async function syncToCloud(isAuto=false){
