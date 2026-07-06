@@ -822,8 +822,7 @@ async function handleUrlSync(isRefresh=false){
       showToast('✅ Ragic 資料已填入');
     }
     _lastSyncedUrl=url;
-    setRH('ok',(isRefresh?'✅ 已從 Ragic 刷新':'✅ 資料同步完成')+' | name='+JSON.stringify(d.name)+'
-| len='+(String(d.name||'').length));setSS('✅ 同步成功');
+  setRH('ok',isRefresh?'✅ 已從 Ragic 刷新':'✅ 資料同步完成');setSS('✅ 同步成功');
   }catch(e){showToast('❌ '+e.message);setRH('err','❌ '+e.message);setSS('⚠️ 同步失敗');}
   finally{btn.disabled=false;btn.innerHTML=orig;btn.style.opacity='1';prog(false);}
 }
