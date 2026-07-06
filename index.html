@@ -812,7 +812,7 @@ async function handleUrlSync(isRefresh=false){
       if(d.company)document.getElementById('f_company').value=d.company;
       if(d.email)document.getElementById('f_email').value=d.email;
       if(d.demo)setDF('demo',d.demo);if(d.last)setDF('last',d.last);
-      showToast('✅ Ragic 資料已刷新');
+      showToast('🔍 name='+JSON.stringify(d.name)+' url='+url.slice(-20));
     }else{
       document.getElementById('f_name').value=d.name||'';
       document.getElementById('f_company').value=d.company||'';
