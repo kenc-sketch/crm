@@ -903,7 +903,7 @@ async function handleUrlSync(isRefresh=false){
   const orig=btn.innerHTML;btn.disabled=true;btn.innerHTML='⏳';btn.style.opacity='.6';
   setSS('⏳ Ragic 通訊中...');prog(true);
   try{
-    const res=await fetchGAS({action:'fetchRagic',token:myToken,ragicUrl:url},12000);
+    const res=await fetchGAS({action:'fetchRagic',token:myToken,ragicUrl:url,forceRefresh:true},12000);
     const d=await res.json();if(d.error)throw new Error(d.error);
     if(!d.name&&!d.company&&!d.demo&&!d.last){
       throw new Error('Ragic 欄位對應失敗，請確認網址是否正確');
@@ -944,7 +944,7 @@ async function syncAllRagic(){
   for(const c of toSync){
     setSS(`🔄 刷新中 ${done+1}/${total}：${c.name}`);
     try{
-      const res=await fetchGAS({action:'fetchRagic',token:myToken,ragicUrl:c.ragic_url},10000);
+      const res=await fetchGAS({action:'fetchRagic',token:myToken,ragicUrl:c.ragic_url,forceRefresh:true},10000);
       const d=await res.json();
       if(!d.error&&(d.name||d.company||d.demo||d.last)){
         const idx=contacts.findIndex(x=>x.id===c.id);
